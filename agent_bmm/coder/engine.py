@@ -24,6 +24,7 @@ from pathlib import Path
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.status import Status
 
 from agent_bmm.coder.context import ContextManager
 from agent_bmm.coder.permissions import PermissionLevel, PermissionManager
@@ -470,15 +471,35 @@ class CoderAgent:
 
         try:
             if self.stream:
-                # Stream tokens to terminal
-                console.print("  [dim]", end="")
+                # Show spinner during initial connection, then stream tokens
+                spinner = Status("  [yellow]Thinking...[/]", console=console, spinner="dots")
+                spinner.start()
+                first_token = True
+
+                def on_token(t: str):
+                    nonlocal first_token
+                    if first_token:
+                        spinner.stop()
+                        console.print("  [dim]", end="")
+                        first_token = False
+                    console.print(t, end="", highlight=False)
+
                 response = await self.llm.chat_stream(
                     self.history,
-                    on_token=lambda t: console.print(t, end="", highlight=False),
+                    on_token=on_token,
                 )
-                console.print("[/]")
+                if first_token:
+                    spinner.stop()
+                else:
+                    console.print("[/]")
             else:
-                response = await self.llm.chat(self.history)
+                # Non-streaming: show spinner for entire LLM call
+                spinner = Status("  [yellow]Thinking...[/]", console=console, spinner="dots")
+                spinner.start()
+                try:
+                    response = await self.llm.chat(self.history)
+                finally:
+                    spinner.stop()
         except Exception as e:
             self.history.append({"role": "user", "content": f"LLM Error: {e}. Try again."})
             return None

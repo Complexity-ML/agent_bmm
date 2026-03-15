@@ -17,6 +17,8 @@ import asyncio
 from dataclasses import dataclass
 
 import torch
+from rich.console import Console
+from rich.status import Status
 
 from agent_bmm.core.router import BMMRouter
 from agent_bmm.llm.backend import LLMBackend
@@ -96,7 +98,13 @@ class AgentChain:
         messages = self.memory.to_messages()
         system = self._build_system_prompt()
         messages.insert(0, {"role": "system", "content": system})
-        return await self.llm.chat(messages)
+        _console = Console()
+        spinner = Status("  [yellow]Thinking...[/]", console=_console, spinner="dots")
+        spinner.start()
+        try:
+            return await self.llm.chat(messages)
+        finally:
+            spinner.stop()
 
     def _route(self, thought: str) -> list[int]:
         """BMM routing — select tools based on LLM thought."""
