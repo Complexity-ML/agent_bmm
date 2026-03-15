@@ -246,3 +246,20 @@ async def run_server(
     """Convenience function to start the server."""
     server = AgentWebSocketServer(agent, host, port)
     await server.start()
+
+
+if __name__ == "__main__":
+    from agent_bmm.config.config import load_config
+
+    cfg = load_config()
+    agent = Agent(
+        model=cfg["llm"]["model"],
+        tools=cfg.get("tools", []),
+    )
+    asyncio.run(
+        run_server(
+            agent,
+            host=cfg["server"]["host"],
+            port=cfg["server"]["port"],
+        )
+    )
