@@ -59,38 +59,54 @@ class CoderAgent:
 
     def __init__(
         self,
-        model: str = "gpt-4o-mini",
-        base_url: str = "https://api.openai.com/v1",
-        api_key: str = "",
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
         project_dir: str = ".",
-        max_steps: int = 20,
-        auto_commit: bool = False,
-        permission: str = "allow_reads",
-        stream: bool = True,
+        max_steps: int | None = None,
+        auto_commit: bool | None = None,
+        permission: str | None = None,
+        stream: bool | None = None,
+        token_budget: int | None = None,
     ):
+        from agent_bmm.config import get_config
+
+        cfg = get_config()
+        llm_cfg = cfg["llm"]
+        coder_cfg = cfg["coder"]
+
         self.project_dir = Path(project_dir).resolve()
-        self.max_steps = max_steps
-        self.auto_commit = auto_commit
-        self.stream = stream
+        self.max_steps = max_steps if max_steps is not None else coder_cfg["max_steps"]
+        self.auto_commit = auto_commit if auto_commit is not None else coder_cfg["auto_commit"]
+        self.stream = stream if stream is not None else coder_cfg["stream"]
+        self.token_budget = token_budget if token_budget is not None else coder_cfg["token_budget"]
+        self._total_tokens = 0
+
+        actual_model = model or llm_cfg["model"]
+        actual_base_url = base_url or llm_cfg["base_url"]
+        actual_api_key = api_key or llm_cfg["api_key"]
+        actual_provider = llm_cfg["provider"]
+
         self.llm = LLMBackend(
             LLMConfig(
-                model=model,
-                base_url=base_url,
-                api_key=api_key,
-                provider="openai",
+                model=actual_model,
+                base_url=actual_base_url,
+                api_key=actual_api_key,
+                provider=actual_provider,
             )
         )
         self.history: list[dict[str, str]] = []
         self._indexed_files: dict[str, str] = {}
         self._checkpoints: list[str] = []
-        self.permissions = PermissionManager(PermissionLevel(permission))
-        self.ctx = ContextManager(max_tokens=100_000)
+        actual_permission = permission or coder_cfg["permission"]
+        self.permissions = PermissionManager(PermissionLevel(actual_permission))
+        self.ctx = ContextManager(max_tokens=coder_cfg["context_window"])
         self._auto_approve_edits = False
 
-    # === Git checkpoint (rollback safety) ===
+    # === Undo stack (multi-level rollback) ===
 
     def _checkpoint(self):
-        """Create a git checkpoint before editing."""
+        """Create a git checkpoint before editing. Supports multiple undo levels."""
         try:
             r = subprocess.run(
                 "git rev-parse --is-inside-work-tree",
@@ -102,28 +118,41 @@ class CoderAgent:
             if r.returncode != 0:
                 return
             subprocess.run("git add -A", shell=True, cwd=self.project_dir, capture_output=True)
+            idx = len(self._checkpoints) + 1
             r = subprocess.run(
-                "git stash push -m 'agent-bmm-checkpoint'",
+                f"git stash push -m 'agent-bmm-checkpoint-{idx}'",
                 shell=True,
                 capture_output=True,
                 text=True,
                 cwd=self.project_dir,
             )
             if "No local changes" not in r.stdout:
-                self._checkpoints.append("stash")
+                self._checkpoints.append(f"checkpoint-{idx}")
         except Exception:
             pass
 
-    def rollback(self) -> str:
-        """Rollback to last checkpoint."""
+    def rollback(self, count: int = 1) -> str:
+        """Rollback one or more checkpoints. count=0 rolls back all."""
         if not self._checkpoints:
-            return "No checkpoint to rollback to"
-        try:
-            subprocess.run("git stash pop", shell=True, cwd=self.project_dir, capture_output=True)
-            self._checkpoints.pop()
-            return "Rolled back to last checkpoint"
-        except Exception as e:
-            return f"Rollback failed: {e}"
+            return "No checkpoints to rollback to."
+        if count == 0:
+            count = len(self._checkpoints)
+        rolled = 0
+        for _ in range(min(count, len(self._checkpoints))):
+            try:
+                subprocess.run("git stash pop", shell=True, cwd=self.project_dir, capture_output=True)
+                self._checkpoints.pop()
+                rolled += 1
+            except Exception as e:
+                return f"Rolled back {rolled} checkpoint(s), then failed: {e}"
+        return f"Rolled back {rolled} checkpoint(s). {len(self._checkpoints)} remaining."
+
+    def undo_history(self) -> str:
+        """Show undo history."""
+        if not self._checkpoints:
+            return "No checkpoints."
+        lines = [f"  {i + 1}. {cp}" for i, cp in enumerate(reversed(self._checkpoints))]
+        return f"Undo stack ({len(self._checkpoints)} checkpoints):\n" + "\n".join(lines)
 
     # === Codebase Tools ===
 
@@ -497,7 +526,9 @@ class CoderAgent:
             console.print(f"  [magenta]Commit:[/] {action.get('message', '')}")
             return self.git_commit(action.get("message", "update"))
         elif act == "rollback":
-            return self.rollback()
+            return self.rollback(action.get("count", 1))
+        elif act == "undo_history":
+            return self.undo_history()
         elif act == "done":
             return "__DONE__:" + action.get("summary", "Done")
         return f"Unknown action: {act}"
@@ -561,6 +592,21 @@ class CoderAgent:
             return None
 
         self.history.append({"role": "assistant", "content": response})
+
+        # Token budget tracking
+        step_tokens = self._estimate_tokens()
+        self._total_tokens = step_tokens
+        if self.token_budget > 0:
+            usage_pct = self._total_tokens / self.token_budget * 100
+            if self._total_tokens >= self.token_budget:
+                console.print(f"  [bold red]Token budget exceeded ({self._total_tokens:,}/{self.token_budget:,})[/]")
+                return "__BUDGET__"
+            elif usage_pct >= 80:
+                console.print(
+                    f"  [yellow]Token budget: {usage_pct:.0f}% "
+                    f"({self._total_tokens:,}/{self.token_budget:,})[/]"
+                )
+
         action = self._parse_action(response)
 
         if action is None:
@@ -611,6 +657,10 @@ class CoderAgent:
     async def _run_loop(self, t0: float) -> str:
         for step in range(1, self.max_steps + 1):
             summary = await self._step(step)
+            if summary == "__BUDGET__":
+                await self.llm.close()
+                console.print(f"\n  [yellow]Token budget ({self.token_budget:,}) exceeded — stopping.[/]")
+                return "Token budget exceeded"
             if summary:
                 elapsed = time.time() - t0
                 console.print()

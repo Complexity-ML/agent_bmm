@@ -18,24 +18,6 @@ import aiohttp
 import orjson
 
 
-def _load_dotenv():
-    """Load .env file into os.environ (no external dependency)."""
-    for path in [".env", "../.env"]:
-        try:
-            with open(path) as f:
-                for line in f:
-                    line = line.strip()
-                    if line and not line.startswith("#") and "=" in line:
-                        key, _, value = line.partition("=")
-                        key = key.strip()
-                        value = value.strip().strip("'\"")
-                        value = value.replace("\x00", "")
-                        if key and value and not os.environ.get(key):
-                            os.environ[key] = value
-        except FileNotFoundError:
-            continue
-
-
 @dataclass
 class LLMConfig:
     """Configuration for an LLM backend."""
@@ -48,8 +30,7 @@ class LLMConfig:
     temperature: float = 0.7
 
     def __post_init__(self):
-        # Load .env file if it exists
-        _load_dotenv()
+        # Keys come from config.py (which loads .env). Fallback to env vars.
         if not self.api_key:
             if self.provider == "openai":
                 self.api_key = os.environ.get("OPENAI_API_KEY", "")
@@ -111,6 +92,8 @@ class LLMBackend:
         **kwargs: Any,
     ) -> str:
         """Generate a chat completion."""
+        if self.config.provider == "anthropic":
+            return await self._chat_anthropic(messages, max_tokens, temperature)
         session = await self._get_session()
         payload = {
             "model": self.config.model,
@@ -138,6 +121,8 @@ class LLMBackend:
         **kwargs: Any,
     ) -> str:
         """Stream a chat completion token by token. Returns full response."""
+        if self.config.provider == "anthropic":
+            return await self._chat_stream_anthropic(messages, max_tokens, temperature, on_token)
         import json as json_mod
 
         session = await self._get_session()
@@ -174,6 +159,103 @@ class LLMBackend:
                         if on_token:
                             on_token(content)
                 except (json_mod.JSONDecodeError, KeyError, IndexError):
+                    continue
+
+        return "".join(full_response)
+
+    async def _chat_anthropic(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+    ) -> str:
+        """Native Anthropic Messages API call."""
+        session = await self._get_session()
+        # Separate system message from conversation
+        system = ""
+        conv = []
+        for m in messages:
+            if m["role"] == "system":
+                system = m["content"]
+            else:
+                conv.append(m)
+
+        payload = {
+            "model": self.config.model,
+            "messages": conv,
+            "max_tokens": max_tokens or self.config.max_tokens,
+        }
+        if system:
+            payload["system"] = system
+        if temperature is not None:
+            payload["temperature"] = temperature
+
+        headers = {
+            "x-api-key": self.config.api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+
+        url = f"{self.config.base_url}/messages"
+        async with session.post(url, json=payload, headers=headers) as resp:
+            data = await resp.json()
+            if "content" in data:
+                return data["content"][0]["text"]
+            return data.get("error", {}).get("message", str(data))
+
+    async def _chat_stream_anthropic(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        on_token: Any = None,
+    ) -> str:
+        """Stream from Anthropic Messages API."""
+        import json as json_mod
+
+        session = await self._get_session()
+        system = ""
+        conv = []
+        for m in messages:
+            if m["role"] == "system":
+                system = m["content"]
+            else:
+                conv.append(m)
+
+        payload = {
+            "model": self.config.model,
+            "messages": conv,
+            "max_tokens": max_tokens or self.config.max_tokens,
+            "stream": True,
+        }
+        if system:
+            payload["system"] = system
+        if temperature is not None:
+            payload["temperature"] = temperature
+
+        headers = {
+            "x-api-key": self.config.api_key,
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+
+        url = f"{self.config.base_url}/messages"
+        full_response = []
+
+        async with session.post(url, json=payload, headers=headers) as resp:
+            async for line in resp.content:
+                line = line.decode(errors="replace").strip()
+                if not line or not line.startswith("data: "):
+                    continue
+                try:
+                    data = json_mod.loads(line[6:])
+                    if data.get("type") == "content_block_delta":
+                        text = data.get("delta", {}).get("text", "")
+                        if text:
+                            full_response.append(text)
+                            if on_token:
+                                on_token(text)
+                except (json_mod.JSONDecodeError, KeyError):
                     continue
 
         return "".join(full_response)

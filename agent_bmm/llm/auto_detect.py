@@ -46,7 +46,14 @@ def detect_provider(model: str = "", base_url: str = "") -> tuple[str, str, str]
     if model.startswith("claude-"):
         return "anthropic", "https://api.anthropic.com/v1", os.environ.get("ANTHROPIC_API_KEY", "")
 
-    if "llama" in model.lower() or "mistral" in model.lower() or "qwen" in model.lower():
+    # Ollama local models: "ollama:codellama", "ollama:llama3"
+    if model.startswith("ollama:"):
+        ollama_model = model.split(":", 1)[1]
+        ollama_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
+        return "openai", f"{ollama_url}/v1", f"ollama:{ollama_model}"
+
+    model_lower = model.lower()
+    if "llama" in model_lower or "mistral" in model_lower or "qwen" in model_lower:
         # Open models — check for Groq/Together first, fallback to local
         groq_key = os.environ.get("GROQ_API_KEY", "")
         if groq_key:

@@ -3,10 +3,14 @@
 """
 CLI — Command-line interface for Agent BMM.
 
+All defaults come from agent_bmm.config (yaml / .env / env vars).
+CLI args override config. Zero hardcoded values here.
+
 Usage:
     agent-bmm run "What is quantum computing?"
-    agent-bmm serve --port 8765
-    agent-bmm batch queries.txt -o results.json
+    agent-bmm code "Add login page"
+    agent-bmm chat
+    agent-bmm serve
     agent-bmm config init
 """
 
@@ -19,28 +23,41 @@ from pathlib import Path
 
 from rich.console import Console
 
+from agent_bmm.config import generate_default_config, load_config
+
 console = Console()
 
 
-def load_config(path: str | None = None) -> dict:
-    """Load YAML or JSON config."""
-    if path is None:
-        for default in ["agent-bmm.yaml", "agent-bmm.yml", "agent-bmm.json"]:
-            if Path(default).exists():
-                path = default
-                break
-    if path is None:
-        return {}
+def _cfg(args) -> dict:
+    """Load config, then overlay CLI args on top."""
+    cli_overrides = {}
 
-    p = Path(path)
-    if p.suffix in (".yaml", ".yml"):
-        try:
-            import yaml
+    # Model override → llm.model
+    model = getattr(args, "model", None)
+    if model:
+        cli_overrides.setdefault("llm", {})["model"] = model
 
-            return yaml.safe_load(p.read_text()) or {}
-        except ImportError:
-            console.print("[yellow]PyYAML not installed, trying JSON...[/]")
-    return json.loads(p.read_text())
+    # Permission, max_steps, etc. → coder.*
+    for key in ("max_steps", "permission", "token_budget"):
+        val = getattr(args, key.replace("-", "_"), None)
+        if val is not None:
+            cli_overrides.setdefault("coder", {})[key] = val
+
+    # Server overrides
+    for key in ("host", "port"):
+        val = getattr(args, key, None)
+        if val is not None:
+            cli_overrides.setdefault("server", {})[key] = val
+
+    # Tools override
+    tools = getattr(args, "tools", None)
+    if tools:
+        cli_overrides["tools"] = tools.split(",")
+
+    return load_config(
+        path=getattr(args, "config", None),
+        cli_overrides=cli_overrides if cli_overrides else None,
+    )
 
 
 def build_agent_from_config(config: dict):
@@ -70,77 +87,71 @@ def build_agent_from_config(config: dict):
         "docker": DockerTool,
     }
 
-    llm = config.get("llm", {})
+    llm = config["llm"]
+    router = config["router"]
     agent = Agent(
-        model=llm.get("model", ""),
-        base_url=llm.get("base_url", "http://localhost:8081/v1"),
-        api_key=llm.get("api_key", ""),
-        provider=llm.get("provider", "openai"),
-        hidden_size=config.get("router", {}).get("hidden_size", 256),
-        expert_size=config.get("router", {}).get("expert_size", 128),
-        routing=config.get("router", {}).get("routing", "round_robin"),
-        max_steps=config.get("max_steps", 5),
+        model=llm["model"],
+        base_url=llm["base_url"],
+        api_key=llm["api_key"],
+        provider=llm["provider"],
+        hidden_size=router["hidden_size"],
+        expert_size=router["expert_size"],
+        routing=router["routing"],
+        max_steps=config["coder"]["max_steps"],
     )
 
     # Register tools
-    tools_config = config.get("tools", ["math", "code", "search"])
-    if isinstance(tools_config, list):
-        for tool_name in tools_config:
-            if isinstance(tool_name, str) and tool_name in BUILTIN_TOOLS:
-                tool = BUILTIN_TOOLS[tool_name]()
+    for tool_name in config.get("tools", []):
+        if isinstance(tool_name, str) and tool_name in BUILTIN_TOOLS:
+            tool = BUILTIN_TOOLS[tool_name]()
+            agent.add_tool(
+                name=tool.name,
+                description=tool.description,
+                fn=tool.fn,
+                async_fn=tool.async_fn,
+            )
+        elif isinstance(tool_name, dict):
+            name = tool_name.get("name", "")
+            if name in BUILTIN_TOOLS:
+                kwargs = {k: v for k, v in tool_name.items() if k != "name"}
+                tool = BUILTIN_TOOLS[name](**kwargs)
                 agent.add_tool(
                     name=tool.name,
                     description=tool.description,
                     fn=tool.fn,
                     async_fn=tool.async_fn,
                 )
-            elif isinstance(tool_name, dict):
-                name = tool_name.get("name", "")
-                if name in BUILTIN_TOOLS:
-                    kwargs = {k: v for k, v in tool_name.items() if k != "name"}
-                    tool = BUILTIN_TOOLS[name](**kwargs)
-                    agent.add_tool(
-                        name=tool.name,
-                        description=tool.description,
-                        fn=tool.fn,
-                        async_fn=tool.async_fn,
-                    )
 
     return agent
 
 
+# ── Commands ──
+
+
 def cmd_run(args):
     """Run a single query."""
-    config = load_config(args.config)
-    if args.model:
-        config.setdefault("llm", {})["model"] = args.model
-    if args.tools:
-        config["tools"] = args.tools.split(",")
-
+    config = _cfg(args)
     agent = build_agent_from_config(config)
     query = " ".join(args.query)
-
     answer = agent.ask_sync(query)
     console.print(answer)
 
 
 def cmd_serve(args):
     """Start WebSocket server."""
-    config = load_config(args.config)
-    if args.model:
-        config.setdefault("llm", {})["model"] = args.model
-
+    config = _cfg(args)
     agent = build_agent_from_config(config)
 
     from agent_bmm.server import run_server
 
-    console.print(f"[bold cyan]Starting Agent BMM server on port {args.port}[/]")
-    asyncio.run(run_server(agent, host=args.host, port=args.port))
+    srv = config["server"]
+    console.print(f"[bold cyan]Starting Agent BMM server on port {srv['port']}[/]")
+    asyncio.run(run_server(agent, host=srv["host"], port=srv["port"]))
 
 
 def cmd_batch(args):
     """Process a batch of queries."""
-    config = load_config(args.config)
+    config = _cfg(args)
     agent = build_agent_from_config(config)
 
     input_path = Path(args.input)
@@ -173,14 +184,23 @@ def cmd_batch(args):
 
 def cmd_code(args):
     """Run the coding agent."""
+    config = _cfg(args)
+    llm = config["llm"]
+    coder_cfg = config["coder"]
+
     from agent_bmm.coder import CoderAgent
 
     task = " ".join(args.task)
     coder = CoderAgent(
-        model=args.model,
-        project_dir=args.dir,
-        max_steps=args.max_steps,
-        permission=args.permission,
+        model=llm["model"],
+        base_url=llm["base_url"],
+        api_key=llm["api_key"],
+        project_dir=getattr(args, "dir", "."),
+        max_steps=coder_cfg["max_steps"],
+        permission=coder_cfg["permission"],
+        stream=coder_cfg["stream"],
+        auto_commit=coder_cfg["auto_commit"],
+        token_budget=coder_cfg["token_budget"],
     )
     coder.run(task)
 
@@ -194,12 +214,18 @@ def cmd_remote(args):
 
 def cmd_chat(args):
     """Interactive coding agent chat."""
+    config = _cfg(args)
+    llm = config["llm"]
+    coder_cfg = config["coder"]
+
     from agent_bmm.coder.chat import ChatSession
 
     session = ChatSession(
-        model=args.model,
-        project_dir=args.dir,
-        max_steps=args.max_steps,
+        model=llm["model"],
+        base_url=llm["base_url"],
+        api_key=llm["api_key"],
+        project_dir=getattr(args, "dir", "."),
+        max_steps=coder_cfg["max_steps"],
     )
     session.run()
 
@@ -211,28 +237,43 @@ def cmd_workflow(args):
     asyncio.run(run_workflow(args.file, dry_run=args.dry_run, output=args.output))
 
 
-def cmd_config_init(args):
-    """Generate a default config file."""
-    default_config = {
-        "llm": {
-            "provider": "openai",
-            "base_url": "http://localhost:8081/v1",
-            "model": "your-model-here",
-            "api_key": "",
-        },
-        "router": {
-            "hidden_size": 256,
-            "expert_size": 128,
-            "routing": "round_robin",
-        },
-        "max_steps": 5,
-        "tools": ["search", "math", "code"],
-    }
+def cmd_history(args):
+    """List previous coding sessions."""
+    from agent_bmm.persistence import ConversationStore
 
-    out = args.output or "agent-bmm.json"
-    Path(out).write_text(json.dumps(default_config, indent=2))
+    store = ConversationStore()
+    conversations = store.get_conversations(limit=args.limit)
+    store.close()
+
+    if not conversations:
+        console.print("[dim]No previous sessions found.[/]")
+        return
+
+    from datetime import datetime
+
+    console.print(f"\n[bold cyan]Previous Sessions[/] ({len(conversations)} found)\n")
+    for conv in conversations:
+        ts = datetime.fromtimestamp(conv["created_at"]).strftime("%Y-%m-%d %H:%M")
+        console.print(f"  [bold]#{conv['id']}[/] [dim]{ts}[/] — {conv['title']}")
+
+    if args.show:
+        messages = ConversationStore().get_messages(args.show)
+        console.print(f"\n[bold]Session #{args.show}[/]\n")
+        for msg in messages:
+            role = msg["role"]
+            color = "cyan" if role == "user" else "green"
+            console.print(f"  [{color}]{role}:[/] {msg['content'][:200]}")
+
+
+def cmd_config_init(args):
+    """Generate a default agent-bmm.yaml config file."""
+    out = args.output or "agent-bmm.yaml"
+    Path(out).write_text(generate_default_config())
     console.print(f"[green]Config written to {out}[/]")
     console.print("[dim]Edit the file to configure your agent.[/]")
+
+
+# ── CLI parser ──
 
 
 def main():
@@ -240,29 +281,27 @@ def main():
         prog="agent-bmm",
         description="Agent BMM — GPU-accelerated agent framework",
     )
+    parser.add_argument("-c", "--config", help="Config file path (yaml/json)")
     sub = parser.add_subparsers(dest="command")
 
     # run
     p_run = sub.add_parser("run", help="Run a single query")
     p_run.add_argument("query", nargs="+", help="The query to ask")
-    p_run.add_argument("-c", "--config", help="Config file path")
-    p_run.add_argument("-m", "--model", help="LLM model name")
+    p_run.add_argument("-m", "--model", help="LLM model (overrides config)")
     p_run.add_argument("-t", "--tools", help="Comma-separated tool names")
     p_run.set_defaults(func=cmd_run)
 
     # serve
     p_serve = sub.add_parser("serve", help="Start WebSocket server")
-    p_serve.add_argument("-c", "--config", help="Config file path")
-    p_serve.add_argument("-m", "--model", help="LLM model name")
-    p_serve.add_argument("--host", default="0.0.0.0")
-    p_serve.add_argument("--port", type=int, default=8765)
+    p_serve.add_argument("-m", "--model", help="LLM model (overrides config)")
+    p_serve.add_argument("--host", help="Server host")
+    p_serve.add_argument("--port", type=int, help="Server port")
     p_serve.set_defaults(func=cmd_serve)
 
     # batch
     p_batch = sub.add_parser("batch", help="Process a batch of queries")
     p_batch.add_argument("input", help="Input file (txt or json)")
     p_batch.add_argument("-o", "--output", help="Output JSON file")
-    p_batch.add_argument("-c", "--config", help="Config file path")
     p_batch.set_defaults(func=cmd_batch)
 
     # workflow
@@ -275,22 +314,18 @@ def main():
     # code
     p_code = sub.add_parser("code", help="Coding agent — edit your project with AI")
     p_code.add_argument("task", nargs="+", help="What to code")
-    p_code.add_argument("-m", "--model", default="gpt-4o-mini", help="LLM model")
+    p_code.add_argument("-m", "--model", help="LLM model (overrides config)")
     p_code.add_argument("-d", "--dir", default=".", help="Project directory")
-    p_code.add_argument("--max-steps", type=int, default=20, help="Max agent steps")
-    p_code.add_argument(
-        "--permission",
-        default="allow_reads",
-        choices=["ask", "allow_reads", "yolo"],
-        help="Permission level",
-    )
+    p_code.add_argument("--max-steps", type=int, help="Max agent steps")
+    p_code.add_argument("--permission", choices=["ask", "allow_reads", "yolo"], help="Permission level")
+    p_code.add_argument("--token-budget", type=int, help="Max token budget (0=unlimited)")
     p_code.set_defaults(func=cmd_code)
 
     # chat
     p_chat = sub.add_parser("chat", help="Interactive coding agent chat")
-    p_chat.add_argument("-m", "--model", default="gpt-4o-mini", help="LLM model")
+    p_chat.add_argument("-m", "--model", help="LLM model (overrides config)")
     p_chat.add_argument("-d", "--dir", default=".", help="Project directory")
-    p_chat.add_argument("--max-steps", type=int, default=20, help="Max steps per request")
+    p_chat.add_argument("--max-steps", type=int, help="Max steps per request")
     p_chat.set_defaults(func=cmd_chat)
 
     # remote
@@ -298,10 +333,16 @@ def main():
     p_remote.add_argument("url", help="WebSocket URL (ws://host:port)")
     p_remote.set_defaults(func=cmd_remote)
 
+    # history
+    p_history = sub.add_parser("history", help="List previous coding sessions")
+    p_history.add_argument("-n", "--limit", type=int, default=20, help="Max sessions to show")
+    p_history.add_argument("-s", "--show", type=int, help="Show messages from session ID")
+    p_history.set_defaults(func=cmd_history)
+
     # config
     p_config = sub.add_parser("config", help="Config management")
     p_config_sub = p_config.add_subparsers(dest="config_command")
-    p_init = p_config_sub.add_parser("init", help="Generate default config")
+    p_init = p_config_sub.add_parser("init", help="Generate default agent-bmm.yaml")
     p_init.add_argument("-o", "--output", help="Output file path")
     p_init.set_defaults(func=cmd_config_init)
 
