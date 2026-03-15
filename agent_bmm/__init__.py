@@ -21,7 +21,7 @@ Workflow (zero code):
 __version__ = "0.1.0"
 
 from agent_bmm.agent import Agent
-from agent_bmm.decorators import tool
 from agent_bmm.tools.registry import Tool, ToolRegistry
+from agent_bmm.utils.decorators import tool
 
 __all__ = ["Agent", "tool", "Tool", "ToolRegistry"]

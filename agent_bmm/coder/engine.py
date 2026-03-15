@@ -69,7 +69,7 @@ class CoderAgent:
         stream: bool | None = None,
         token_budget: int | None = None,
     ):
-        from agent_bmm.config import get_config
+        from agent_bmm.config.config import get_config
 
         cfg = get_config()
         llm_cfg = cfg["llm"]

@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from agent_bmm.persistence import ConversationStore
+from agent_bmm.utils.persistence import ConversationStore
 
 
 class SessionMemory:

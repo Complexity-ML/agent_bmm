@@ -53,7 +53,14 @@ class LLMBackend:
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
+            # Connection pooling: reuse TCP connections across requests
+            connector = aiohttp.TCPConnector(
+                limit=20,  # max simultaneous connections
+                limit_per_host=10,  # max per host
+                keepalive_timeout=30,
+            )
             self._session = aiohttp.ClientSession(
+                connector=connector,
                 json_serialize=lambda x: orjson.dumps(x).decode(),
             )
         return self._session

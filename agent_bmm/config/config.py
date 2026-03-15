@@ -11,7 +11,7 @@ Loads from (in priority order):
   5. Built-in defaults (lowest)
 
 Usage:
-    from agent_bmm.config import load_config, get_config
+    from agent_bmm.config.config import load_config, get_config
 
     cfg = load_config()          # load once at startup
     cfg = get_config()           # get cached config anywhere

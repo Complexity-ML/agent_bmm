@@ -23,7 +23,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from agent_bmm.config import generate_default_config, load_config
+from agent_bmm.config.config import generate_default_config, load_config
 
 console = Console()
 
@@ -142,7 +142,7 @@ def cmd_serve(args):
     config = _cfg(args)
     agent = build_agent_from_config(config)
 
-    from agent_bmm.server import run_server
+    from agent_bmm.server.server import run_server
 
     srv = config["server"]
     console.print(f"[bold cyan]Starting Agent BMM server on port {srv['port']}[/]")
@@ -217,7 +217,7 @@ def cmd_code(args):
 
 def cmd_remote(args):
     """Connect to remote Agent BMM server."""
-    from agent_bmm.remote import run_remote
+    from agent_bmm.server.remote import run_remote
 
     run_remote(args.url)
 
@@ -242,14 +242,14 @@ def cmd_chat(args):
 
 def cmd_workflow(args):
     """Run a YAML/JSON workflow."""
-    from agent_bmm.workflow import run_workflow
+    from agent_bmm.utils.workflow import run_workflow
 
     asyncio.run(run_workflow(args.file, dry_run=args.dry_run, output=args.output))
 
 
 def cmd_history(args):
     """List previous coding sessions."""
-    from agent_bmm.persistence import ConversationStore
+    from agent_bmm.utils.persistence import ConversationStore
 
     store = ConversationStore()
     conversations = store.get_conversations(limit=args.limit)

@@ -44,35 +44,37 @@ class Agent:
 
     def __init__(
         self,
-        model: str = "",
-        base_url: str = "https://api.openai.com/v1",
-        api_key: str = "",
-        provider: str = "openai",
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key: str | None = None,
+        provider: str | None = None,
         tools: str | list[str] | None = None,
-        max_steps: int = 5,
-        hidden_size: int = 256,
-        expert_size: int = 128,
-        routing: str = "round_robin",
+        max_steps: int | None = None,
+        hidden_size: int | None = None,
+        expert_size: int | None = None,
+        routing: str | None = None,
     ):
-        self._hidden_size = hidden_size
-        self._expert_size = expert_size
-        self._routing = routing
-        self._max_steps = max_steps
+        from agent_bmm.config.config import get_config
 
-        # Auto-detect provider if not specified
-        if not base_url or not api_key:
-            from agent_bmm.llm.auto_detect import detect_provider
+        cfg = get_config()
+        llm_cfg = cfg["llm"]
+        router_cfg = cfg["router"]
 
-            detected_provider, detected_url, detected_key = detect_provider(model, base_url)
-            provider = provider or detected_provider
-            base_url = base_url or detected_url
-            api_key = api_key or detected_key
+        self._hidden_size = hidden_size or router_cfg["hidden_size"]
+        self._expert_size = expert_size or router_cfg["expert_size"]
+        self._routing = routing or router_cfg["routing"]
+        self._max_steps = max_steps or cfg["coder"]["max_steps"]
+
+        actual_model = model or llm_cfg["model"]
+        actual_base_url = base_url or llm_cfg["base_url"]
+        actual_api_key = api_key or llm_cfg["api_key"]
+        actual_provider = provider or llm_cfg["provider"]
 
         self._llm_config = LLMConfig(
-            provider=provider,
-            base_url=base_url,
-            api_key=api_key,
-            model=model,
+            provider=actual_provider,
+            base_url=actual_base_url,
+            api_key=actual_api_key,
+            model=actual_model,
         )
         self._tools = ToolRegistry()
         self._chain: AgentChain | None = None

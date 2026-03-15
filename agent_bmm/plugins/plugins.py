@@ -17,7 +17,7 @@ Creating a plugin:
         return Tool(name="my_tool", description="...", fn=my_fn)
 
 Usage:
-    from agent_bmm.plugins import discover_plugins, load_plugin
+    from agent_bmm.plugins.plugins import discover_plugins, load_plugin
     plugins = discover_plugins()
     tool = load_plugin("my_tool")
 """

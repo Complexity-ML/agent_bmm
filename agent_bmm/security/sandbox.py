@@ -38,10 +38,15 @@ class SandboxConfig:
     timeout_seconds: float = 30.0
     max_memory_mb: int = 512
     max_output_bytes: int = 100_000
-    allowed_network: bool = True
+    allowed_network: bool = False  # Default: no network for code exec
     work_dir: str = ""
     docker_image: str = "python:3.12-slim"
     docker_network: str = "none"  # "none" = no network, "bridge" = allow
+    blocked_imports: set[str] = None  # Imports to block in process sandbox
+
+    def __post_init__(self):
+        if self.blocked_imports is None:
+            self.blocked_imports = {"socket", "http.client", "urllib.request", "requests", "httpx", "aiohttp"}
 
 
 @dataclass
