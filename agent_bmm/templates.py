@@ -61,11 +61,7 @@ TEMPLATES: dict[str, dict[str, str]] = {
             '  "devDependencies": {"vite": "^5.0", "@vitejs/plugin-react": "^4.0"}\n'
             "}\n"
         ),
-        "src/App.jsx": (
-            "export default function App() {\n"
-            "  return <h1>Hello, World!</h1>;\n"
-            "}\n"
-        ),
+        "src/App.jsx": ("export default function App() {\n  return <h1>Hello, World!</h1>;\n}\n"),
         "README.md": "# React App\n\n`npm install && npm run dev`\n",
     },
 }

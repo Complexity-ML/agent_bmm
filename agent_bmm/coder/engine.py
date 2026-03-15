@@ -552,9 +552,7 @@ class CoderAgent:
             if not cmds:
                 return "Error: 'parallel' needs a 'cmds' list"
             console.print(f"  [cyan]Parallel:[/] {len(cmds)} commands")
-            results = asyncio.get_event_loop().run_until_complete(
-                self._run_parallel(cmds)
-            )
+            results = asyncio.get_event_loop().run_until_complete(self._run_parallel(cmds))
             return "\n---\n".join(results)
         elif act == "rollback":
             return self.rollback(action.get("count", 1))
@@ -566,6 +564,7 @@ class CoderAgent:
 
     async def _run_parallel(self, cmds: list[str]) -> list[str]:
         """Run multiple commands in parallel."""
+
         async def _run_one(cmd: str) -> str:
             proc = await asyncio.create_subprocess_shell(
                 cmd,
@@ -584,6 +583,7 @@ class CoderAgent:
             if proc.returncode != 0:
                 out += f"\n(exit code: {proc.returncode})"
             return f"[{cmd}]\n{out[:2000] or '(no output)'}"
+
         return await asyncio.gather(*[_run_one(c) for c in cmds])
 
     def _parse_action(self, response: str) -> dict | None:
@@ -656,8 +656,7 @@ class CoderAgent:
                 return "__BUDGET__"
             elif usage_pct >= 80:
                 console.print(
-                    f"  [yellow]Token budget: {usage_pct:.0f}% "
-                    f"({self._total_tokens:,}/{self.token_budget:,})[/]"
+                    f"  [yellow]Token budget: {usage_pct:.0f}% ({self._total_tokens:,}/{self.token_budget:,})[/]"
                 )
 
         action = self._parse_action(response)

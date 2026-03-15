@@ -34,11 +34,10 @@ class EmbeddingRouter:
         """Lazy-load the embedding model."""
         if self._model is None:
             from sentence_transformers import SentenceTransformer
+
             self._model = SentenceTransformer(self._model_name)
             # Pre-compute tool description embeddings
-            embeddings = self._model.encode(
-                self.tool_descriptions, convert_to_tensor=True
-            )
+            embeddings = self._model.encode(self.tool_descriptions, convert_to_tensor=True)
             self._tool_embeddings = F.normalize(embeddings, dim=-1)
 
     def route(self, query: str, top_k: int = 1) -> list[tuple[int, float]]:

@@ -23,13 +23,33 @@ from agent_bmm.llm.backend import LLMBackend, LLMConfig
 
 # Complexity signals
 COMPLEX_KEYWORDS = {
-    "refactor", "architect", "design", "optimize", "debug", "security",
-    "performance", "migrate", "analyze", "explain why", "trade-off",
-    "compare", "implement from scratch", "full stack",
+    "refactor",
+    "architect",
+    "design",
+    "optimize",
+    "debug",
+    "security",
+    "performance",
+    "migrate",
+    "analyze",
+    "explain why",
+    "trade-off",
+    "compare",
+    "implement from scratch",
+    "full stack",
 }
 SIMPLE_KEYWORDS = {
-    "hello", "print", "create file", "rename", "delete", "list",
-    "read", "show", "what is", "how to", "fix typo",
+    "hello",
+    "print",
+    "create file",
+    "rename",
+    "delete",
+    "list",
+    "read",
+    "show",
+    "what is",
+    "how to",
+    "fix typo",
 }
 
 

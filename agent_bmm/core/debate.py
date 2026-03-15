@@ -57,10 +57,7 @@ class Debate:
 
         Returns synthesized consensus.
         """
-        agents = [
-            DebateAgent(f"Agent_{i}", pos, self.llm)
-            for i, pos in enumerate(positions)
-        ]
+        agents = [DebateAgent(f"Agent_{i}", pos, self.llm) for i, pos in enumerate(positions)]
 
         for round_num in range(self.rounds):
             tasks = []

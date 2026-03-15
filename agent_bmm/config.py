@@ -67,6 +67,7 @@ DEFAULTS: dict[str, Any] = {
 
 # ── .env loader ──
 
+
 def _load_dotenv():
     """Load .env file into os.environ (no external dependency)."""
     for path in [".env", "../.env"]:
@@ -105,8 +106,14 @@ ENV_MAP = {
 
 # Type coercion for env vars
 _INT_KEYS = {
-    "max_steps", "token_budget", "port", "hidden_size", "expert_size",
-    "max_file_size", "max_context_files", "context_window",
+    "max_steps",
+    "token_budget",
+    "port",
+    "hidden_size",
+    "expert_size",
+    "max_file_size",
+    "max_context_files",
+    "context_window",
 }
 _FLOAT_KEYS = {"interval"}
 _BOOL_KEYS = {"stream", "auto_commit", "enabled"}
@@ -184,9 +191,8 @@ def load_config(path: str | None = None, cli_overrides: dict | None = None) -> d
     # 6. Auto-detect provider if set to "auto"
     if config["llm"]["provider"] == "auto" and config["llm"]["model"]:
         from agent_bmm.llm.auto_detect import detect_provider
-        provider, base_url, api_key = detect_provider(
-            config["llm"]["model"], config["llm"]["base_url"]
-        )
+
+        provider, base_url, api_key = detect_provider(config["llm"]["model"], config["llm"]["base_url"])
         if config["llm"]["provider"] == "auto":
             config["llm"]["provider"] = provider
         if not config["llm"]["base_url"]:
@@ -216,6 +222,7 @@ def _load_config_file(path: str | None) -> dict:
     if p.suffix in (".yaml", ".yml"):
         try:
             import yaml
+
             return yaml.safe_load(text) or {}
         except ImportError:
             pass
@@ -239,10 +246,7 @@ def load_profile(name: str) -> dict[str, Any]:
             file_config = _load_config_file(str(path))
             if file_config:
                 return load_config(cli_overrides=file_config)
-    raise FileNotFoundError(
-        f"Profile '{name}' not found in {profile_dir}. "
-        f"Create {profile_dir / name}.yaml"
-    )
+    raise FileNotFoundError(f"Profile '{name}' not found in {profile_dir}. Create {profile_dir / name}.yaml")
 
 
 def generate_default_config() -> str:

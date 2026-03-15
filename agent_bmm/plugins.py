@@ -118,6 +118,7 @@ def search_plugins(query: str = "") -> list[dict]:
 def install_plugin(name: str) -> str:
     """Install a plugin from PyPI."""
     import subprocess
+
     try:
         result = subprocess.run(
             ["pip", "install", name],

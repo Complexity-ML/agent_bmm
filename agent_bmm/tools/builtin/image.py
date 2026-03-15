@@ -35,6 +35,7 @@ class ImageTool:
     def _analyze(self, query: str) -> str:
         """Sync wrapper."""
         import asyncio
+
         return asyncio.run(self._async_analyze(query))
 
     async def _async_analyze(self, query: str) -> str:
@@ -67,13 +68,15 @@ class ImageTool:
 
         payload = {
             "model": self.model,
-            "messages": [{
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": question},
-                    {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{b64}"}},
-                ],
-            }],
+            "messages": [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": question},
+                        {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{b64}"}},
+                    ],
+                }
+            ],
             "max_tokens": 500,
         }
 

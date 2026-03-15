@@ -38,9 +38,7 @@ def rank_files_by_relevance(
         return _rank_keyword(query, files, top_k)
 
 
-def _rank_tfidf(
-    query: str, files: dict[str, str], top_k: int
-) -> list[tuple[str, float]]:
+def _rank_tfidf(query: str, files: dict[str, str], top_k: int) -> list[tuple[str, float]]:
     """Rank using TF-IDF cosine similarity (requires scikit-learn)."""
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.metrics.pairwise import cosine_similarity
@@ -59,9 +57,7 @@ def _rank_tfidf(
     return ranked[:top_k]
 
 
-def _rank_keyword(
-    query: str, files: dict[str, str], top_k: int
-) -> list[tuple[str, float]]:
+def _rank_keyword(query: str, files: dict[str, str], top_k: int) -> list[tuple[str, float]]:
     """Simple keyword matching fallback."""
     keywords = set(re.findall(r"\w+", query.lower()))
     if not keywords:

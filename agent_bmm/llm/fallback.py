@@ -54,9 +54,7 @@ class FallbackLLM:
                 console.print(f"  [yellow]Fallback:[/] {self.models[i]} failed ({e}), trying next...")
         raise RuntimeError(f"All models failed. Last error: {last_error}")
 
-    async def chat_stream(
-        self, messages: list[dict[str, str]], on_token: Any = None, **kwargs: Any
-    ) -> str:
+    async def chat_stream(self, messages: list[dict[str, str]], on_token: Any = None, **kwargs: Any) -> str:
         """Try each model in order with streaming."""
         last_error = None
         for i, backend in enumerate(self._backends):

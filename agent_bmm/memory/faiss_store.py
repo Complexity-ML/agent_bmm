@@ -37,6 +37,7 @@ class FAISSMemory:
         if index_path.exists():
             try:
                 import faiss
+
                 self._index = faiss.read_index(str(index_path))
             except ImportError:
                 pass
@@ -44,12 +45,14 @@ class FAISSMemory:
     def _get_encoder(self):
         if self._encoder is None:
             from sentence_transformers import SentenceTransformer
+
             self._encoder = SentenceTransformer("all-MiniLM-L6-v2")
         return self._encoder
 
     def _get_index(self):
         if self._index is None:
             import faiss
+
             self._index = faiss.IndexFlatIP(self.dim)  # Inner product (cosine after normalization)
         return self._index
 
@@ -90,13 +93,12 @@ class FAISSMemory:
         self.db_path.mkdir(parents=True, exist_ok=True)
 
         # Save entries
-        (self.db_path / "entries.json").write_text(
-            json.dumps(self._entries, ensure_ascii=False, indent=2)
-        )
+        (self.db_path / "entries.json").write_text(json.dumps(self._entries, ensure_ascii=False, indent=2))
 
         # Save FAISS index
         if self._index is not None:
             import faiss
+
             faiss.write_index(self._index, str(self.db_path / "index.faiss"))
 
     def clear(self):

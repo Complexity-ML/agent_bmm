@@ -33,6 +33,7 @@ class AudioTool:
 
     def _transcribe(self, query: str) -> str:
         import asyncio
+
         return asyncio.run(self._async_transcribe(query))
 
     async def _async_transcribe(self, query: str) -> str:
@@ -73,6 +74,7 @@ class AudioTool:
         """Transcribe locally using whisper package."""
         try:
             import whisper
+
             model = whisper.load_model("base")
             result = model.transcribe(str(path))
             return result["text"]

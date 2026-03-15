@@ -77,19 +77,18 @@ class ConversationBrancher:
     async def _explore_branch(self, branch: Branch, query: str):
         """Explore a single branch."""
         messages = branch.memory.to_messages()
-        messages.append({
-            "role": "user",
-            "content": f"Approach: {branch.approach}\n\nNow solve: {query}",
-        })
+        messages.append(
+            {
+                "role": "user",
+                "content": f"Approach: {branch.approach}\n\nNow solve: {query}",
+            }
+        )
         branch.result = await self.llm.chat(messages)
         branch.memory.add_turn("assistant", branch.result)
 
     async def _score_branches(self, query: str, branches: list[Branch]) -> list[Branch]:
         """Score each branch's result."""
-        summaries = "\n".join(
-            f"Branch {b.id} ({b.approach}): {b.result[:200]}"
-            for b in branches
-        )
+        summaries = "\n".join(f"Branch {b.id} ({b.approach}): {b.result[:200]}" for b in branches)
         messages = [
             {"role": "system", "content": "Rate each branch 1-10. Reply with just numbers, one per line."},
             {"role": "user", "content": f"Query: {query}\n\n{summaries}"},
