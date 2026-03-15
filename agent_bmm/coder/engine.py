@@ -25,6 +25,8 @@ from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 
+from agent_bmm.coder.context import ContextManager
+from agent_bmm.coder.permissions import PermissionLevel, PermissionManager
 from agent_bmm.llm.backend import LLMBackend, LLMConfig
 
 console = Console()
@@ -62,6 +64,7 @@ class CoderAgent:
         project_dir: str = ".",
         max_steps: int = 20,
         auto_commit: bool = False,
+        permission: str = "allow_reads",
     ):
         self.project_dir = Path(project_dir).resolve()
         self.max_steps = max_steps
@@ -77,6 +80,8 @@ class CoderAgent:
         self.history: list[dict[str, str]] = []
         self._indexed_files: dict[str, str] = {}
         self._checkpoints: list[str] = []
+        self.permissions = PermissionManager(PermissionLevel(permission))
+        self.ctx = ContextManager(max_tokens=100_000)
 
     # === Git checkpoint (rollback safety) ===
 
@@ -265,14 +270,52 @@ class CoderAgent:
         return "\n".join(lines) or "(empty)"
 
     def search_code(self, query: str) -> str:
+        """Search code. Supports 'pattern', 'glob:*.py pattern', 'regex:pattern'."""
+        import fnmatch
+        import re as re_mod
+
+        glob_filter = None
+        use_regex = False
+
+        # Parse glob: prefix
+        if query.startswith("glob:"):
+            parts = query[5:].strip().split(None, 1)
+            if len(parts) == 2:
+                glob_filter, query = parts
+            else:
+                glob_filter, query = parts[0], ""
+
+        # Parse regex: prefix
+        if query.startswith("regex:"):
+            query = query[6:]
+            use_regex = True
+
+        try:
+            pattern = re_mod.compile(query, re_mod.IGNORECASE) if use_regex else None
+        except re_mod.error:
+            return f"Error: invalid regex '{query}'"
+
         results = []
         for fpath, content in (self._indexed_files or self.index_project()).items():
+            if glob_filter and not fnmatch.fnmatch(fpath, glob_filter):
+                continue
             for i, line in enumerate(content.splitlines(), 1):
-                if query.lower() in line.lower():
+                match = pattern.search(line) if pattern else (query.lower() in line.lower())
+                if match:
                     results.append(f"  {fpath}:{i}: {line.strip()}")
-                    if len(results) >= 20:
+                    if len(results) >= 30:
                         return "\n".join(results)
         return "\n".join(results) or f"No matches for '{query}'"
+
+    def glob_files(self, pattern: str) -> str:
+        """List files matching a glob pattern."""
+        import fnmatch
+
+        matches = []
+        for fpath in (self._indexed_files or self.index_project()).keys():
+            if fnmatch.fnmatch(fpath, pattern):
+                matches.append(f"  {fpath}")
+        return "\n".join(matches) or f"No files matching '{pattern}'"
 
     def run_command(self, cmd: str) -> str:
         dangerous = ["rm -rf /", "mkfs", "dd if=", ":(){", "format c:"]
@@ -310,6 +353,13 @@ class CoderAgent:
         self.run_command("git add -A")
         return self.run_command(f'git commit -m "{message}"')
 
+    def git_branch(self, name: str) -> str:
+        """Create and switch to a new branch."""
+        return self.run_command(f"git checkout -b {name}")
+
+    def git_log(self, count: int = 10) -> str:
+        return self.run_command(f"git log --oneline -{count}")
+
     # === Agent Loop ===
 
     def _build_system_prompt(self) -> str:
@@ -344,6 +394,13 @@ class CoderAgent:
 
     def _execute_action(self, action: dict) -> str:
         act = action.get("action", "")
+
+        # Permission check for dangerous actions
+        if act in ("write", "edit", "run", "git_commit", "git_branch"):
+            detail = action.get("path", action.get("cmd", action.get("message", "")))
+            if not self.permissions.check(act, detail):
+                return f"Action '{act}' denied by user."
+
         if act == "read":
             return self.read_file(action.get("path", ""))
         elif act == "write":
@@ -360,6 +417,8 @@ class CoderAgent:
             return self.list_files(action.get("path", "."))
         elif act == "search":
             return self.search_code(action.get("query", ""))
+        elif act == "glob":
+            return self.glob_files(action.get("pattern", ""))
         elif act == "run":
             cmd = action.get("cmd", "")
             console.print(f"  [cyan]Run:[/] {cmd}")
@@ -371,6 +430,10 @@ class CoderAgent:
             return self.git_status()
         elif act == "git_diff":
             return self.git_diff()
+        elif act == "git_log":
+            return self.git_log()
+        elif act == "git_branch":
+            return self.git_branch(action.get("name", "agent-bmm"))
         elif act == "git_commit":
             console.print(f"  [magenta]Commit:[/] {action.get('message', '')}")
             return self.git_commit(action.get("message", "update"))
@@ -400,6 +463,9 @@ class CoderAgent:
             return None
 
     async def _step(self, step_num: int) -> str | None:
+        # Context window management
+        self.history = self.ctx.truncate(self.history)
+
         try:
             response = await self.llm.chat(self.history)
         except Exception as e:
@@ -425,6 +491,9 @@ class CoderAgent:
 
         if result.startswith("__DONE__:"):
             return result[9:]
+
+        # Truncate long results to save context
+        result = self.ctx.truncate_long_result(result)
 
         remaining = self.max_steps - step_num
         urgency = f"\n\n({remaining} steps left. Wrap up soon.)" if remaining <= 2 else ""

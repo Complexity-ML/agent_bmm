@@ -176,7 +176,12 @@ def cmd_code(args):
     from agent_bmm.coder import CoderAgent
 
     task = " ".join(args.task)
-    coder = CoderAgent(model=args.model, project_dir=args.dir, max_steps=args.max_steps)
+    coder = CoderAgent(
+        model=args.model,
+        project_dir=args.dir,
+        max_steps=args.max_steps,
+        permission=args.permission,
+    )
     coder.run(task)
 
 
@@ -273,6 +278,12 @@ def main():
     p_code.add_argument("-m", "--model", default="gpt-4o-mini", help="LLM model")
     p_code.add_argument("-d", "--dir", default=".", help="Project directory")
     p_code.add_argument("--max-steps", type=int, default=20, help="Max agent steps")
+    p_code.add_argument(
+        "--permission",
+        default="allow_reads",
+        choices=["ask", "allow_reads", "yolo"],
+        help="Permission level",
+    )
     p_code.set_defaults(func=cmd_code)
 
     # chat
