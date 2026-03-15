@@ -1,0 +1,37 @@
+[
+  {
+    "name": "agent-bmm-slack",
+    "description": "Slack messaging integration — send/read messages via BMM dispatch",
+    "pip": "agent-bmm-slack",
+    "author": "Complexity-ML",
+    "tags": ["messaging", "slack"]
+  },
+  {
+    "name": "agent-bmm-github",
+    "description": "GitHub API tool — issues, PRs, actions via BMM dispatch",
+    "pip": "agent-bmm-github",
+    "author": "Complexity-ML",
+    "tags": ["git", "github", "devops"]
+  },
+  {
+    "name": "agent-bmm-docker",
+    "description": "Docker management — build, run, manage containers",
+    "pip": "agent-bmm-docker",
+    "author": "Complexity-ML",
+    "tags": ["docker", "devops"]
+  },
+  {
+    "name": "agent-bmm-sql",
+    "description": "SQL database tool — query PostgreSQL, MySQL, SQLite",
+    "pip": "agent-bmm-sql",
+    "author": "Complexity-ML",
+    "tags": ["database", "sql"]
+  },
+  {
+    "name": "agent-bmm-browser",
+    "description": "Browser automation via Playwright — scrape, interact, screenshot",
+    "pip": "agent-bmm-browser",
+    "author": "Complexity-ML",
+    "tags": ["browser", "scraping", "automation"]
+  }
+]
