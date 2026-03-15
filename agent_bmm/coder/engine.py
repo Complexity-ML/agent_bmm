@@ -489,7 +489,22 @@ class CoderAgent:
             if not self.permissions.check(act, detail):
                 return f"Action '{act}' denied by user."
 
-        if act == "read":
+        if act == "multi_edit":
+            # Edit multiple files in one action
+            edits = action.get("edits", [])
+            if not edits:
+                return "Error: 'multi_edit' needs an 'edits' list"
+            results = []
+            for edit in edits:
+                path = edit.get("path", "")
+                if "content" in edit:
+                    results.append(self.write_file(path, edit["content"]))
+                    console.print(f"  [green]Write:[/] {path}")
+                elif "old" in edit and "new" in edit:
+                    results.append(self.edit_file(path, edit["old"], edit["new"]))
+                    console.print(f"  [yellow]Edit:[/] {path}")
+            return "\n".join(results)
+        elif act == "read":
             return self.read_file(action.get("path", ""))
         elif act == "write":
             path = action.get("path", "")
@@ -509,10 +524,16 @@ class CoderAgent:
             return self.glob_files(action.get("pattern", ""))
         elif act == "run":
             cmd = action.get("cmd", "")
+            auto_fix = action.get("auto_fix", False)
+            max_retries = action.get("max_retries", 3) if auto_fix else 0
             console.print(f"  [cyan]Run:[/] {cmd}")
             result = self.run_command(cmd)
             if result and result != "(no output)":
                 console.print(Panel(result[:500], title="[cyan]Output[/]", border_style="dim"))
+            # Auto-fix: if test failed, feed error back to LLM for retry
+            if auto_fix and "(exit code:" in result and max_retries > 0:
+                console.print(f"  [yellow]Auto-fix:[/] test failed, retrying ({max_retries} left)")
+                return f"TEST_FAILED:\n{result}\n\nFix the errors and run again."
             return result
         elif act == "git_status":
             return self.git_status()

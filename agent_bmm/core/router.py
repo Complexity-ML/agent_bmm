@@ -62,6 +62,15 @@ class BMMRouter(nn.Module):
 
         self._init_weights()
 
+    @staticmethod
+    def _get_device() -> torch.device:
+        """Auto-detect best available device: CUDA > MPS > CPU."""
+        if torch.cuda.is_available():
+            return torch.device("cuda")
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return torch.device("mps")
+        return torch.device("cpu")
+
     def _init_weights(self):
         nn.init.kaiming_uniform_(self.up_proj)
         nn.init.kaiming_uniform_(self.down_proj)

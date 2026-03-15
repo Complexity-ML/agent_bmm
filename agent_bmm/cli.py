@@ -161,14 +161,24 @@ def cmd_batch(args):
         queries = [line.strip() for line in input_path.read_text().splitlines() if line.strip()]
 
     async def process_batch():
+        from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
+
         results = []
-        for i, query in enumerate(queries):
-            console.print(f"[dim][{i + 1}/{len(queries)}][/] {query[:80]}")
-            try:
-                answer = await agent.ask(query)
-                results.append({"query": query, "answer": answer, "status": "ok"})
-            except Exception as e:
-                results.append({"query": query, "answer": str(e), "status": "error"})
+        with Progress(
+            TextColumn("[bold cyan]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeRemainingColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Processing", total=len(queries))
+            for query in queries:
+                try:
+                    answer = await agent.ask(query)
+                    results.append({"query": query, "answer": answer, "status": "ok"})
+                except Exception as e:
+                    results.append({"query": query, "answer": str(e), "status": "error"})
+                progress.advance(task)
         return results
 
     results = asyncio.run(process_batch())

@@ -90,3 +90,43 @@ def load_all_plugins(**kwargs: Any) -> list[Tool]:
         if tool is not None:
             tools.append(tool)
     return tools
+
+
+# ── Plugin marketplace ──
+
+REGISTRY_URL = "https://raw.githubusercontent.com/Complexity-ML/agent_bmm/main/plugins.json"
+
+
+def search_plugins(query: str = "") -> list[dict]:
+    """Search the community plugin registry."""
+    import json
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(REGISTRY_URL, timeout=5) as resp:
+            registry = json.loads(resp.read())
+    except Exception:
+        return []
+
+    if not query:
+        return registry
+
+    q = query.lower()
+    return [p for p in registry if q in p.get("name", "").lower() or q in p.get("description", "").lower()]
+
+
+def install_plugin(name: str) -> str:
+    """Install a plugin from PyPI."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["pip", "install", name],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
+        if result.returncode == 0:
+            return f"Installed {name}"
+        return f"Failed: {result.stderr}"
+    except Exception as e:
+        return f"Error: {e}"

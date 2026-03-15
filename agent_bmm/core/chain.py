@@ -93,11 +93,15 @@ class AgentChain:
         # Max steps reached — ask LLM for final answer
         return await self._finalize()
 
-    async def _think(self) -> str:
-        """LLM reasoning step."""
+    async def _think(self, stream: bool = False, on_token=None) -> str:
+        """LLM reasoning step. Supports streaming tokens."""
         messages = self.memory.to_messages()
         system = self._build_system_prompt()
         messages.insert(0, {"role": "system", "content": system})
+
+        if stream and on_token:
+            return await self.llm.chat_stream(messages, on_token=on_token)
+
         _console = Console()
         spinner = Status("  [yellow]Thinking...[/]", console=_console, spinner="dots")
         spinner.start()
@@ -108,12 +112,15 @@ class AgentChain:
 
     def _route(self, thought: str) -> list[int]:
         """BMM routing — select tools based on LLM thought."""
-        # Encode thought as a simple embedding (hash-based for now)
-        # In production, use the LLM's hidden states directly
         h = self._text_to_tensor(thought)
         with torch.no_grad():
             _, expert_ids = self.router(h)
-        return expert_ids.tolist()
+        # For top_k > 1, expert_ids is (N, K) — flatten to list
+        ids = expert_ids.tolist()
+        if isinstance(ids[0], list):
+            # Flatten nested list from top_k routing
+            return [i for sublist in ids for i in sublist]
+        return ids
 
     async def _act(self, tool_ids: list[int], query: str) -> list[ToolResult]:
         """Execute tools — parallel if configured."""
