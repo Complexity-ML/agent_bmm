@@ -192,10 +192,10 @@ class CoderAgent:
         if p.exists():
             old_content = p.read_text(errors="replace")
             if not self._confirm_edit(path, old_content, content):
-                return f"Write cancelled by user."
+                return "Write cancelled by user."
         else:
             if not self._confirm_new_file(path, content):
-                return f"Write cancelled by user."
+                return "Write cancelled by user."
         self._checkpoint()
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
@@ -216,7 +216,7 @@ class CoderAgent:
         if old in content:
             new_content = content.replace(old, new, 1)
             if not self._confirm_edit(path, content, new_content):
-                return f"Edit cancelled by user."
+                return "Edit cancelled by user."
             self._checkpoint()
             p.write_text(new_content)
             self._indexed_files[path] = new_content
@@ -241,7 +241,7 @@ class CoderAgent:
             )
             new_content = "\n".join(new_lines)
             if not self._confirm_edit(path, content, new_content):
-                return f"Edit cancelled by user."
+                return "Edit cancelled by user."
             self._checkpoint()
             p.write_text(new_content)
             self._indexed_files[path] = new_content
