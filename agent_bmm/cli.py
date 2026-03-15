@@ -180,6 +180,13 @@ def cmd_code(args):
     coder.run(task)
 
 
+def cmd_remote(args):
+    """Connect to remote Agent BMM server."""
+    from agent_bmm.remote import run_remote
+
+    run_remote(args.url)
+
+
 def cmd_chat(args):
     """Interactive coding agent chat."""
     from agent_bmm.coder.chat import ChatSession
@@ -274,6 +281,11 @@ def main():
     p_chat.add_argument("-d", "--dir", default=".", help="Project directory")
     p_chat.add_argument("--max-steps", type=int, default=20, help="Max steps per request")
     p_chat.set_defaults(func=cmd_chat)
+
+    # remote
+    p_remote = sub.add_parser("remote", help="Connect to remote Agent BMM server")
+    p_remote.add_argument("url", help="WebSocket URL (ws://host:port)")
+    p_remote.set_defaults(func=cmd_remote)
 
     # config
     p_config = sub.add_parser("config", help="Config management")
