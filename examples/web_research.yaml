@@ -1,0 +1,9 @@
+name: "Web Research"
+model: gpt-4o-mini
+tools: [browser, code]
+max_steps: 3
+
+tasks:
+  - "Search for the latest breakthroughs in quantum computing 2026"
+  - "Summarize the top 3 most important findings"
+  - "Write a short newsletter paragraph about these developments"

@@ -18,6 +18,24 @@ import aiohttp
 import orjson
 
 
+def _load_dotenv():
+    """Load .env file into os.environ (no external dependency)."""
+    for path in [".env", "../.env"]:
+        try:
+            with open(path) as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, _, value = line.partition("=")
+                        key = key.strip()
+                        value = value.strip().strip("'\"")
+                        value = value.replace("\x00", "")
+                        if key and value and not os.environ.get(key):
+                            os.environ[key] = value
+        except FileNotFoundError:
+            continue
+
+
 @dataclass
 class LLMConfig:
     """Configuration for an LLM backend."""
@@ -30,6 +48,8 @@ class LLMConfig:
     temperature: float = 0.7
 
     def __post_init__(self):
+        # Load .env file if it exists
+        _load_dotenv()
         if not self.api_key:
             if self.provider == "openai":
                 self.api_key = os.environ.get("OPENAI_API_KEY", "")

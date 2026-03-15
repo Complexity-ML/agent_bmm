@@ -1,0 +1,24 @@
+name: "Code Audit"
+model: gpt-4o-mini
+tools: [file, code]
+max_steps: 5
+
+tasks:
+  - id: scan
+    prompt: "list . — show all Python files in the current directory"
+    tools: [file]
+
+  - id: review
+    prompt: "read the main Python files from: {{scan.result}} and identify potential bugs or security issues"
+    depends_on: [scan]
+    tools: [file]
+
+  - id: test
+    prompt: "Write and run a simple test to verify the most critical function found in: {{review.result}}"
+    depends_on: [review]
+    tools: [code]
+
+  - id: report
+    prompt: "Write an audit report based on: {{review.result}} and test results: {{test.result}}"
+    depends_on: [review, test]
+    output: audit_report.txt

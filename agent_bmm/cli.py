@@ -171,6 +171,22 @@ def cmd_batch(args):
             console.print(f"[green]A:[/] {r['answer']}\n")
 
 
+def cmd_code(args):
+    """Run the coding agent."""
+    from agent_bmm.coder import CoderAgent
+
+    task = " ".join(args.task)
+    coder = CoderAgent(model=args.model, project_dir=args.dir, max_steps=args.max_steps)
+    coder.run(task)
+
+
+def cmd_workflow(args):
+    """Run a YAML/JSON workflow."""
+    from agent_bmm.workflow import run_workflow
+
+    asyncio.run(run_workflow(args.file, dry_run=args.dry_run, output=args.output))
+
+
 def cmd_config_init(args):
     """Generate a default config file."""
     default_config = {
@@ -224,6 +240,21 @@ def main():
     p_batch.add_argument("-o", "--output", help="Output JSON file")
     p_batch.add_argument("-c", "--config", help="Config file path")
     p_batch.set_defaults(func=cmd_batch)
+
+    # workflow
+    p_wf = sub.add_parser("workflow", help="Run a YAML/JSON workflow")
+    p_wf.add_argument("file", help="Workflow file (.yaml or .json)")
+    p_wf.add_argument("-o", "--output", help="Save results to JSON file")
+    p_wf.add_argument("--dry-run", action="store_true", help="Show tasks without executing")
+    p_wf.set_defaults(func=cmd_workflow)
+
+    # code
+    p_code = sub.add_parser("code", help="Coding agent — edit your project with AI")
+    p_code.add_argument("task", nargs="+", help="What to code")
+    p_code.add_argument("-m", "--model", default="gpt-4o-mini", help="LLM model")
+    p_code.add_argument("-d", "--dir", default=".", help="Project directory")
+    p_code.add_argument("--max-steps", type=int, default=10, help="Max agent steps")
+    p_code.set_defaults(func=cmd_code)
 
     # config
     p_config = sub.add_parser("config", help="Config management")

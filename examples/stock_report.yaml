@@ -1,0 +1,19 @@
+name: "Stock Report"
+model: gpt-4o-mini
+tools: [browser, code, file]
+max_steps: 3
+
+tasks:
+  - id: search
+    prompt: "Find the latest Tesla (TSLA) stock price and recent news"
+    tools: [browser]
+
+  - id: analyze
+    prompt: "Based on this data: {{search.result}} — Calculate a simple analysis: current price, 52-week context, and market sentiment"
+    depends_on: [search]
+    tools: [code]
+
+  - id: report
+    prompt: "Write a concise stock report from: {{search.result}} and {{analyze.result}}"
+    depends_on: [search, analyze]
+    output: tesla_report.txt
