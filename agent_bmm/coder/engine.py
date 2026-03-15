@@ -84,6 +84,7 @@ class CoderAgent:
         self._checkpoints: list[str] = []
         self.permissions = PermissionManager(PermissionLevel(permission))
         self.ctx = ContextManager(max_tokens=100_000)
+        self._auto_approve_edits = False
 
     # === Git checkpoint (rollback safety) ===
 
@@ -187,6 +188,13 @@ class CoderAgent:
         p = (self.project_dir / path).resolve()
         if not str(p).startswith(str(self.project_dir)):
             return f"Error: {path} is outside project"
+        if p.exists():
+            old_content = p.read_text(errors="replace")
+            if not self._confirm_edit(path, old_content, content):
+                return f"Write cancelled by user."
+        else:
+            if not self._confirm_new_file(path, content):
+                return f"Write cancelled by user."
         self._checkpoint()
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(content)
@@ -201,15 +209,16 @@ class CoderAgent:
         if not p.exists():
             return f"Error: {path} not found"
 
-        self._checkpoint()
         content = p.read_text(errors="replace")
 
         # Exact match
         if old in content:
             new_content = content.replace(old, new, 1)
+            if not self._confirm_edit(path, content, new_content):
+                return f"Edit cancelled by user."
+            self._checkpoint()
             p.write_text(new_content)
             self._indexed_files[path] = new_content
-            self._show_diff(path, content, new_content)
             return f"Edited {path}"
 
         # Fuzzy match
@@ -230,9 +239,11 @@ class CoderAgent:
                 content_lines[:best_start] + new.strip().splitlines() + content_lines[best_start + len(old_lines) :]
             )
             new_content = "\n".join(new_lines)
+            if not self._confirm_edit(path, content, new_content):
+                return f"Edit cancelled by user."
+            self._checkpoint()
             p.write_text(new_content)
             self._indexed_files[path] = new_content
-            self._show_diff(path, content, new_content)
             return f"Edited {path} (fuzzy {best_ratio:.0%} at line {best_start + 1})"
 
         return f"Error: text not found in {path}. Read the file first."
@@ -257,6 +268,51 @@ class CoderAgent:
             else:
                 text += f"[dim]{line.rstrip()}[/]\n"
         console.print(Panel(text.rstrip(), title=f"[yellow]diff {path}[/]", border_style="yellow"))
+
+    def _confirm_edit(self, path: str, old_content: str, new_content: str) -> bool:
+        """Show diff preview and ask user to confirm before applying."""
+        if self.permissions.level == PermissionLevel.YOLO or self._auto_approve_edits:
+            self._show_diff(path, old_content, new_content)
+            return True
+
+        # Count changes
+        old_lines = old_content.splitlines()
+        new_lines = new_content.splitlines()
+        added = max(0, len(new_lines) - len(old_lines))
+        removed = max(0, len(old_lines) - len(new_lines))
+        console.print(f"\n  [bold yellow]Preview:[/] {path}  [green]+{added} lines[/]  [red]-{removed} lines[/]")
+        self._show_diff(path, old_content, new_content)
+
+        try:
+            response = console.input("  [dim]Apply this change? (y/n/a) [/]").strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            return False
+
+        if response in ("a", "always"):
+            self._auto_approve_edits = True
+            return True
+        return response in ("y", "yes")
+
+    def _confirm_new_file(self, path: str, content: str) -> bool:
+        """Show preview of a new file and ask user to confirm."""
+        if self.permissions.level == PermissionLevel.YOLO or self._auto_approve_edits:
+            return True
+
+        preview = content[:2000]
+        if len(content) > 2000:
+            preview += "\n... (truncated)"
+        console.print(f"\n  [bold green]New file:[/] {path}  ({len(content)} chars)")
+        console.print(Panel(preview, title=f"[green]{path}[/]", border_style="green"))
+
+        try:
+            response = console.input("  [dim]Create this file? (y/n/a) [/]").strip().lower()
+        except (KeyboardInterrupt, EOFError):
+            return False
+
+        if response in ("a", "always"):
+            self._auto_approve_edits = True
+            return True
+        return response in ("y", "yes")
 
     def list_files(self, path: str = ".") -> str:
         p = (self.project_dir / path).resolve()
