@@ -317,23 +317,29 @@ class CoderAgent:
         file_list = "\n".join(f"  {f}" for f in files.keys()) or "  (empty project)"
 
         return (
-            "You are a coding agent. You edit code in a project.\n\n"
+            "You are a coding agent. You MUST respond with ONLY a JSON object. "
+            "No text, no markdown, no explanation — JUST the JSON.\n\n"
             f"Project: {self.project_dir.name}\n"
             f"Files:\n{file_list}\n\n"
+            "WORKFLOW: First WRITE the code, THEN RUN to test it. "
+            "NEVER run a file before writing it.\n\n"
             "RULES:\n"
-            "- Create files in the project ROOT, not subdirectories (unless asked).\n"
-            "- ALWAYS read a file before editing it.\n"
-            "- After writing code, test it with 'run'.\n"
-            "- Respond with ONE JSON action per message. No markdown.\n\n"
-            "Actions:\n"
-            '  {"action": "read", "path": "main.py"}\n'
-            '  {"action": "write", "path": "main.py", "content": "code here"}\n'
-            '  {"action": "edit", "path": "main.py", "old": "old", "new": "new"}\n'
-            '  {"action": "list", "path": "."}\n'
-            '  {"action": "search", "query": "def main"}\n'
-            '  {"action": "run", "cmd": "python main.py"}\n'
-            '  {"action": "git_commit", "message": "feat: add X"}\n'
-            '  {"action": "done", "summary": "What I did"}'
+            "- Your ENTIRE response must be a single JSON object\n"
+            "- Create files in the project ROOT\n"
+            "- ALWAYS write before run\n"
+            "- Read a file before editing it\n\n"
+            "ACTIONS:\n"
+            '{"action":"write","path":"game.py","content":"import pygame\\n..."}\n'
+            '{"action":"read","path":"game.py"}\n'
+            '{"action":"edit","path":"game.py","old":"old code","new":"new code"}\n'
+            '{"action":"run","cmd":"python game.py"}\n'
+            '{"action":"list","path":"."}\n'
+            '{"action":"search","query":"def main"}\n'
+            '{"action":"done","summary":"Created snake game"}\n\n'
+            "EXAMPLE — if asked to create a hello.py:\n"
+            'Step 1: {"action":"write","path":"hello.py","content":"print(\'Hello World\')"}\n'
+            'Step 2: {"action":"run","cmd":"python hello.py"}\n'
+            'Step 3: {"action":"done","summary":"Created hello.py"}'
         )
 
     def _execute_action(self, action: dict) -> str:

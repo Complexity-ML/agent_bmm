@@ -253,7 +253,7 @@ def main():
     p_code.add_argument("task", nargs="+", help="What to code")
     p_code.add_argument("-m", "--model", default="gpt-4o-mini", help="LLM model")
     p_code.add_argument("-d", "--dir", default=".", help="Project directory")
-    p_code.add_argument("--max-steps", type=int, default=10, help="Max agent steps")
+    p_code.add_argument("--max-steps", type=int, default=20, help="Max agent steps")
     p_code.set_defaults(func=cmd_code)
 
     # config
