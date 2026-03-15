@@ -8,14 +8,13 @@ Measures the speedup of routing N queries to K tools via BMM
 compared to the traditional sequential loop approach.
 """
 
-import time
 import sys
+import time
 
 sys.path.insert(0, ".")
 
 import torch
 import torch.nn.functional as F
-
 from rich.console import Console
 from rich.table import Table
 
@@ -27,7 +26,7 @@ def bench_sequential(
 ):
     """Sequential dispatch — one expert at a time (LangChain-style)."""
     N, H = x.shape
-    I = weights_up.shape[2]
+    weights_up.shape[2]
     output = torch.zeros_like(x)
     for e in range(num_experts):
         mask = expert_ids == e
