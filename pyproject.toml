@@ -41,6 +41,9 @@ dependencies = [
 agent-bmm = "agent_bmm.cli:main"
 
 [project.optional-dependencies]
+browser = [
+    "playwright>=1.40",
+]
 dev = [
     "pytest>=7.0",
     "ruff>=0.1",

@@ -11,6 +11,7 @@ from agent_bmm.tools.builtin.math_tool import MathTool
 from agent_bmm.tools.builtin.github import GitHubTool
 from agent_bmm.tools.builtin.slack import SlackTool
 from agent_bmm.tools.builtin.docker import DockerTool
+from agent_bmm.tools.builtin.browser import BrowserTool
 
 __all__ = [
     "WebSearchTool",
@@ -22,4 +23,5 @@ __all__ = [
     "GitHubTool",
     "SlackTool",
     "DockerTool",
+    "BrowserTool",
 ]
