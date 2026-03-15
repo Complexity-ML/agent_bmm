@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 
 from rich.console import Console
 from rich.panel import Panel
+from rich.status import Status
 from rich.table import Table
 
 console = Console()
@@ -48,6 +49,7 @@ class AgentLogger:
         self.entries: list[BMMTraceEntry] = []
         self._step = 0
         self._start_time = 0.0
+        self._spinner: Status | None = None
 
     def start(self, query: str):
         """Log agent start."""
@@ -141,6 +143,18 @@ class AgentLogger:
                     border_style="green",
                 )
             )
+
+    def log_llm_start(self, message: str = "Thinking..."):
+        """Start a spinner while waiting for LLM response."""
+        if self.verbose:
+            self._spinner = Status(f"  [yellow]{message}[/]", console=console, spinner="dots")
+            self._spinner.start()
+
+    def log_llm_done(self):
+        """Stop the LLM spinner."""
+        if self._spinner is not None:
+            self._spinner.stop()
+            self._spinner = None
 
     def log_error(self, error: str):
         """Log an error."""
