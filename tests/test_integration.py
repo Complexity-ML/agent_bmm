@@ -18,6 +18,13 @@ sys.path.insert(0, ".")
 from agent_bmm.coder.engine import CoderAgent
 
 
+class _MockConfig:
+    model = "mock"
+    base_url = ""
+    api_key = ""
+    provider = "openai"
+
+
 class MockLLM:
     """Mock LLM backend that returns predefined responses in sequence."""
 
@@ -25,6 +32,7 @@ class MockLLM:
         self.responses = responses
         self.call_count = 0
         self.messages_log: list[list[dict]] = []
+        self.config = _MockConfig()
 
     async def chat(self, messages, **kwargs) -> str:
         self.messages_log.append(messages)

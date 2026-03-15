@@ -278,8 +278,35 @@ class CoderAgent:
 
         return f"Error: text not found in {path}. Read the file first."
 
-    def _show_diff(self, path: str, old: str, new: str):
-        """Show colored diff in terminal."""
+    def regex_edit_file(self, path: str, pattern: str, replacement: str) -> str:
+        """Edit a file using regex pattern replacement."""
+        import re as re_mod
+
+        p = (self.project_dir / path).resolve()
+        if not str(p).startswith(str(self.project_dir)):
+            return f"Error: {path} is outside project"
+        if not p.exists():
+            return f"Error: {path} not found"
+
+        try:
+            regex = re_mod.compile(pattern)
+        except re_mod.error as e:
+            return f"Error: invalid regex '{pattern}': {e}"
+
+        content = p.read_text(errors="replace")
+        new_content, count = regex.subn(replacement, content)
+        if count == 0:
+            return f"Error: regex '{pattern}' had no matches in {path}"
+
+        if not self._confirm_edit(path, content, new_content):
+            return "Edit cancelled by user."
+        self._checkpoint()
+        p.write_text(new_content)
+        self._indexed_files[path] = new_content
+        return f"Regex edited {path} ({count} replacements)"
+
+    def _show_diff(self, path: str, old: str, new: str, streaming: bool = False):
+        """Show colored diff in terminal. Optionally stream char by char."""
         diff = difflib.unified_diff(
             old.splitlines(keepends=True),
             new.splitlines(keepends=True),
@@ -289,15 +316,40 @@ class CoderAgent:
         lines = list(diff)[:30]
         if not lines:
             return
-        text = ""
-        for line in lines:
-            if line.startswith("+") and not line.startswith("+++"):
-                text += f"[green]{line.rstrip()}[/]\n"
-            elif line.startswith("-") and not line.startswith("---"):
-                text += f"[red]{line.rstrip()}[/]\n"
-            else:
-                text += f"[dim]{line.rstrip()}[/]\n"
-        console.print(Panel(text.rstrip(), title=f"[yellow]diff {path}[/]", border_style="yellow"))
+
+        if streaming:
+            self._show_diff_streaming(path, lines)
+        else:
+            text = ""
+            for line in lines:
+                if line.startswith("+") and not line.startswith("+++"):
+                    text += f"[green]{line.rstrip()}[/]\n"
+                elif line.startswith("-") and not line.startswith("---"):
+                    text += f"[red]{line.rstrip()}[/]\n"
+                else:
+                    text += f"[dim]{line.rstrip()}[/]\n"
+            console.print(Panel(text.rstrip(), title=f"[yellow]diff {path}[/]", border_style="yellow"))
+
+    def _show_diff_streaming(self, path: str, lines: list[str]):
+        """Show diff with streaming animation — chars appear progressively."""
+        from rich.live import Live
+        from rich.text import Text
+
+        display = Text()
+        with Live(Panel(display, title=f"[yellow]diff {path}[/]", border_style="yellow"), console=console) as live:
+            for line in lines:
+                raw = line.rstrip()
+                if raw.startswith("+") and not raw.startswith("+++"):
+                    style = "green"
+                elif raw.startswith("-") and not raw.startswith("---"):
+                    style = "red"
+                else:
+                    style = "dim"
+                for char in raw:
+                    display.append(char, style=style)
+                    live.update(Panel(display, title=f"[yellow]diff {path}[/]", border_style="yellow"))
+                    time.sleep(0.005)
+                display.append("\n")
 
     def _confirm_edit(self, path: str, old_content: str, new_content: str) -> bool:
         """Show diff preview and ask user to confirm before applying."""
@@ -448,14 +500,38 @@ class CoderAgent:
     def git_log(self, count: int = 10) -> str:
         return self.run_command(f"git log --oneline -{count}")
 
+    def git_pr(self, branch: str, message: str, title: str = "", body: str = "") -> str:
+        """Full PR workflow: branch, commit, push, open PR."""
+        results = []
+        results.append(self.run_command(f"git checkout -b {branch}"))
+        self.run_command("git add -A")
+        results.append(self.run_command(f'git commit -m "{message}"'))
+        results.append(self.run_command(f"git push -u origin {branch}"))
+        pr_title = title or message[:70]
+        pr_body = body or message
+        pr_result = self.run_command(f'gh pr create --title "{pr_title}" --body "{pr_body}"')
+        results.append(pr_result)
+        return "\n".join(results)
+
     # === Agent Loop ===
+
+    def _load_custom_prompt(self) -> str:
+        """Load custom system prompt from .agent-bmm-prompt if it exists."""
+        prompt_file = self.project_dir / ".agent-bmm-prompt"
+        if prompt_file.exists():
+            try:
+                return prompt_file.read_text(errors="replace").strip() + "\n\n"
+            except Exception:
+                pass
+        return ""
 
     def _build_system_prompt(self) -> str:
         files = self._indexed_files or self.index_project()
         file_list = "\n".join(f"  {f}" for f in files.keys()) or "  (empty project)"
 
+        custom = self._load_custom_prompt()
         return (
-            "You are a coding agent. You MUST respond with ONLY a JSON object. "
+            custom + "You are a coding agent. You MUST respond with ONLY a JSON object. "
             "No text, no markdown, no explanation — JUST the JSON.\n\n"
             f"Project: {self.project_dir.name}\n"
             f"Files:\n{file_list}\n\n"
@@ -516,6 +592,10 @@ class CoderAgent:
             r = self.edit_file(action.get("path", ""), action.get("old", ""), action.get("new", ""))
             console.print(f"  [yellow]Edit:[/] {action.get('path')}")
             return r
+        elif act == "regex_edit":
+            r = self.regex_edit_file(action.get("path", ""), action.get("regex", ""), action.get("replace", ""))
+            console.print(f"  [yellow]Regex edit:[/] {action.get('path')}")
+            return r
         elif act == "list":
             return self.list_files(action.get("path", "."))
         elif act == "search":
@@ -546,6 +626,14 @@ class CoderAgent:
         elif act == "git_commit":
             console.print(f"  [magenta]Commit:[/] {action.get('message', '')}")
             return self.git_commit(action.get("message", "update"))
+        elif act == "git_pr":
+            console.print(f"  [magenta]PR:[/] {action.get('branch', '')} — {action.get('message', '')}")
+            return self.git_pr(
+                action.get("branch", "agent-bmm-pr"),
+                action.get("message", "update"),
+                action.get("title", ""),
+                action.get("body", ""),
+            )
         elif act == "parallel":
             # Run independent commands in parallel (e.g., lint + test)
             cmds = action.get("cmds", [])
@@ -686,6 +774,19 @@ class CoderAgent:
         self.history.append({"role": "user", "content": f"Result:\n{result}{urgency}"})
         return None
 
+    def _estimate_cost_upfront(self, task: str) -> tuple[int, float]:
+        """Estimate tokens and cost before running a task."""
+        from agent_bmm.coder.cost import CostTracker
+
+        # System prompt + task + estimated ~5 roundtrips
+        sys_prompt = self._build_system_prompt()
+        estimated_input = len(sys_prompt) + len(task)
+        # Rough: each step ~2x the context growth
+        estimated_total = estimated_input * min(self.max_steps, 10) // 4
+        tracker = CostTracker(self.llm.config.model)
+        tracker.add_request(estimated_total * 4)  # chars
+        return tracker.total_tokens, tracker.estimated_cost
+
     async def arun(self, task: str) -> str:
         t0 = time.time()
         console.print()
@@ -693,6 +794,18 @@ class CoderAgent:
 
         files = self.index_project()
         console.print(f"  [dim]Indexed {len(files)} files[/]")
+
+        # Cost estimation
+        est_tokens, est_cost = self._estimate_cost_upfront(task)
+        if est_cost > 0.01:
+            console.print(f"  [yellow]Estimated: ~{est_tokens:,} tokens · ${est_cost:.4f}[/]")
+            if self.permissions.level != PermissionLevel.YOLO:
+                try:
+                    resp = console.input("  [dim]Proceed? (y/n) [/]").strip().lower()
+                    if resp not in ("y", "yes", ""):
+                        return "Cancelled by user."
+                except (KeyboardInterrupt, EOFError):
+                    return "Cancelled."
 
         self.history = [
             {"role": "system", "content": self._build_system_prompt()},
