@@ -186,9 +186,7 @@ class MultiAgentOrchestrator:
         self._logger.log_answer(answer)
         return answer
 
-    async def _run_agent(
-        self, agent: SubAgent, query: str, context: str
-    ) -> tuple[str, float]:
+    async def _run_agent(self, agent: SubAgent, query: str, context: str) -> tuple[str, float]:
         """Run a single sub-agent and return (result, time_ms)."""
         t0 = time.time()
         result = await agent.process(query, context)

@@ -147,9 +147,7 @@ def cmd_batch(args):
     if input_path.suffix == ".json":
         queries = json.loads(input_path.read_text())
     else:
-        queries = [
-            line.strip() for line in input_path.read_text().splitlines() if line.strip()
-        ]
+        queries = [line.strip() for line in input_path.read_text().splitlines() if line.strip()]
 
     async def process_batch():
         results = []

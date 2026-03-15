@@ -58,10 +58,7 @@ class ContextMemory:
 
     def to_messages(self) -> list[dict[str, str]]:
         """Convert to OpenAI-style message list."""
-        return [
-            {"role": t.role if t.role != "tool" else "assistant", "content": t.content}
-            for t in self.turns
-        ]
+        return [{"role": t.role if t.role != "tool" else "assistant", "content": t.content} for t in self.turns]
 
     @property
     def last_tool_results(self) -> list[ToolResult]:

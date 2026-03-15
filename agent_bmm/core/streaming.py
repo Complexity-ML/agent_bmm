@@ -89,9 +89,7 @@ class StreamingHandler:
 
     async def emit_tool_result(self, tool_name: str, result: str):
         """Notify listeners that a tool finished."""
-        await self._emit(
-            "tool_result", json.dumps({"tool": tool_name, "result": result[:500]})
-        )
+        await self._emit("tool_result", json.dumps({"tool": tool_name, "result": result[:500]}))
 
     async def emit_thinking(self, thought: str):
         """Notify listeners of agent thinking."""

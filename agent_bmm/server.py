@@ -58,18 +58,14 @@ class AgentWebSocketServer:
         """Handle a single WebSocket client."""
         self._connections.add(websocket)
         client_id = id(websocket)
-        console.print(
-            f"[cyan]Client {client_id} connected[/] ({len(self._connections)} total)"
-        )
+        console.print(f"[cyan]Client {client_id} connected[/] ({len(self._connections)} total)")
 
         try:
             async for message in websocket:
                 try:
                     data = json.loads(message)
                 except json.JSONDecodeError:
-                    await websocket.send(
-                        json.dumps({"type": "error", "data": "Invalid JSON"})
-                    )
+                    await websocket.send(json.dumps({"type": "error", "data": "Invalid JSON"}))
                     continue
 
                 msg_type = data.get("type", "")
@@ -77,9 +73,7 @@ class AgentWebSocketServer:
                 if msg_type == "query":
                     query = data.get("text", "")
                     if not query:
-                        await websocket.send(
-                            json.dumps({"type": "error", "data": "Empty query"})
-                        )
+                        await websocket.send(json.dumps({"type": "error", "data": "Empty query"}))
                         continue
 
                     # Process query with streaming events
@@ -234,10 +228,7 @@ class AgentWebSocketServer:
 
     async def start(self):
         """Start the WebSocket server."""
-        console.print(
-            f"[bold cyan]Agent BMM WebSocket Server[/] "
-            f"listening on ws://{self.host}:{self.port}"
-        )
+        console.print(f"[bold cyan]Agent BMM WebSocket Server[/] listening on ws://{self.host}:{self.port}")
         async with serve(
             self._handle_client,
             self.host,

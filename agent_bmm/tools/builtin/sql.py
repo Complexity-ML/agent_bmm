@@ -56,9 +56,7 @@ def create_sql_tool(
             if read_only:
                 conn.execute("PRAGMA query_only = ON")
             cursor = conn.execute(query)
-            columns = (
-                [desc[0] for desc in cursor.description] if cursor.description else []
-            )
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
             rows = cursor.fetchmany(max_rows)
             conn.close()
 
@@ -88,9 +86,7 @@ def create_sql_tool(
             conn = psycopg2.connect(connection_string)
             cursor = conn.cursor()
             cursor.execute(query)
-            columns = (
-                [desc[0] for desc in cursor.description] if cursor.description else []
-            )
+            columns = [desc[0] for desc in cursor.description] if cursor.description else []
             rows = cursor.fetchmany(max_rows)
             conn.close()
 

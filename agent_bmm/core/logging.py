@@ -68,8 +68,7 @@ class AgentLogger:
         self._step += 1
         if self.verbose:
             console.print(
-                f"  [dim]Step {self._step}[/] [yellow]Think:[/] "
-                f"{thought[:100]}{'...' if len(thought) > 100 else ''}"
+                f"  [dim]Step {self._step}[/] [yellow]Think:[/] {thought[:100]}{'...' if len(thought) > 100 else ''}"
             )
 
     def log_route(
@@ -113,10 +112,7 @@ class AgentLogger:
     def log_tool_start(self, tool_name: str, query: str):
         """Log tool execution start."""
         if self.verbose:
-            console.print(
-                f"  [dim]Step {self._step}[/] [magenta]Tool:[/] "
-                f"[bold]{tool_name}[/] ← {query[:80]}"
-            )
+            console.print(f"  [dim]Step {self._step}[/] [magenta]Tool:[/] [bold]{tool_name}[/] ← {query[:80]}")
 
     def log_tool_result(self, tool_name: str, result: str, time_ms: float):
         """Log tool execution result."""
@@ -171,9 +167,7 @@ class AgentLogger:
             expert_str = " ".join(f"{n}:{c}" for n, c in counts.items())
 
             # Tool results
-            tool_str = " ".join(
-                f"{n}({t:.0f}ms)" for n, t in entry.tool_times_ms.items()
-            )
+            tool_str = " ".join(f"{n}({t:.0f}ms)" for n, t in entry.tool_times_ms.items())
 
             table.add_row(
                 str(entry.step),
@@ -191,9 +185,7 @@ class AgentLogger:
             return
 
         total_dispatch = sum(e.dispatch_time_ms for e in self.entries)
-        total_tools = sum(
-            sum(t for t in e.tool_times_ms.values()) for e in self.entries
-        )
+        total_tools = sum(sum(t for t in e.tool_times_ms.values()) for e in self.entries)
         total = (time.time() - self._start_time) * 1000
 
         table = Table(title="Performance", border_style="yellow")

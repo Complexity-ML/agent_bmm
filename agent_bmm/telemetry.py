@@ -45,9 +45,7 @@ class MetricsCollector:
         self._counters: dict[str, float] = defaultdict(float)
         self._histograms: dict[str, list[float]] = defaultdict(list)
         self._gauges: dict[str, float] = {}
-        self._labeled_counters: dict[str, dict[str, float]] = defaultdict(
-            lambda: defaultdict(float)
-        )
+        self._labeled_counters: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
         self._start_time = time.time()
 
     # Counters

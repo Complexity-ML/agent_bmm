@@ -93,9 +93,7 @@ class Retriever:
         self._load_embedder()
         k = top_k or self.top_k
 
-        query_emb = self._embedder.encode(
-            [query], convert_to_numpy=True, normalize_embeddings=True
-        ).astype(np.float32)
+        query_emb = self._embedder.encode([query], convert_to_numpy=True, normalize_embeddings=True).astype(np.float32)
 
         scores, indices = self._index.search(query_emb, k)
         return [self._chunks[i] for i in indices[0] if i < len(self._chunks)]

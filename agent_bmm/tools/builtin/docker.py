@@ -53,8 +53,7 @@ def create_docker_tool(
                         if not containers:
                             return "No running containers"
                         return "\n".join(
-                            f"  {c['Id'][:12]} {c['Image']} {c['State']} {c.get('Status', '')}"
-                            for c in containers
+                            f"  {c['Id'][:12]} {c['Image']} {c['State']} {c.get('Status', '')}" for c in containers
                         )
 
                 elif cmd == "images":

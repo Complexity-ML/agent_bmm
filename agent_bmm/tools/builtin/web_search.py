@@ -33,9 +33,7 @@ def create_web_search(
         url = f"https://html.duckduckgo.com/html/?q={quote_plus(query)}"
         headers = {"User-Agent": "Mozilla/5.0 (compatible; AgentBMM/0.1)"}
         async with aiohttp.ClientSession() as session:
-            async with session.get(
-                url, headers=headers, timeout=aiohttp.ClientTimeout(total=timeout)
-            ) as resp:
+            async with session.get(url, headers=headers, timeout=aiohttp.ClientTimeout(total=timeout)) as resp:
                 html = await resp.text()
 
         # Parse results from HTML
@@ -48,11 +46,7 @@ def create_web_search(
             title = re.sub(r"<.*?>", "", titles[i] if i < len(titles) else "")
             snippet = re.sub(r"<.*?>", "", snippets[i])
             link = links[i] if i < len(links) else ""
-            results.append(
-                f"{i + 1}. {unescape(title.strip())}\n"
-                f"   {unescape(snippet.strip())}\n"
-                f"   {link}"
-            )
+            results.append(f"{i + 1}. {unescape(title.strip())}\n   {unescape(snippet.strip())}\n   {link}")
 
         if not results:
             return f"No results found for: {query}"

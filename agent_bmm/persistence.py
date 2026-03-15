@@ -80,9 +80,7 @@ class ConversationStore:
         """)
         conn.commit()
 
-    def create_conversation(
-        self, title: str = "Untitled", metadata: dict | None = None
-    ) -> int:
+    def create_conversation(self, title: str = "Untitled", metadata: dict | None = None) -> int:
         conn = self._get_conn()
         now = time.time()
         cursor = conn.execute(
@@ -166,19 +164,13 @@ class ConversationStore:
 
     def get_conversation(self, conversation_id: int) -> dict | None:
         conn = self._get_conn()
-        row = conn.execute(
-            "SELECT * FROM conversations WHERE id = ?", (conversation_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM conversations WHERE id = ?", (conversation_id,)).fetchone()
         return dict(row) if row else None
 
     def delete_conversation(self, conversation_id: int):
         conn = self._get_conn()
-        conn.execute(
-            "DELETE FROM messages WHERE conversation_id = ?", (conversation_id,)
-        )
-        conn.execute(
-            "DELETE FROM agent_state WHERE conversation_id = ?", (conversation_id,)
-        )
+        conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
+        conn.execute("DELETE FROM agent_state WHERE conversation_id = ?", (conversation_id,))
         conn.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
         conn.commit()
 

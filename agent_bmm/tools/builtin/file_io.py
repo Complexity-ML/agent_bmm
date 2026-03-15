@@ -52,10 +52,7 @@ def create_file_io_tool(
                 return f"Error: {parts[1]} is not a file"
             content = p.read_text(errors="replace")
             if len(content) > max_read_size:
-                content = (
-                    content[:max_read_size]
-                    + f"\n... (truncated at {max_read_size} chars)"
-                )
+                content = content[:max_read_size] + f"\n... (truncated at {max_read_size} chars)"
             return content
 
         elif cmd == "list" and len(parts) >= 2:

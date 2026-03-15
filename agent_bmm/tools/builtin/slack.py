@@ -75,10 +75,7 @@ def create_slack_tool(
                             return f"Slack Error: {data.get('error', 'unknown')}"
                         messages = data.get("messages", [])
                         return (
-                            "\n".join(
-                                f"  [{m.get('user', '?')}]: {m.get('text', '')[:200]}"
-                                for m in messages[:count]
-                            )
+                            "\n".join(f"  [{m.get('user', '?')}]: {m.get('text', '')[:200]}" for m in messages[:count])
                             or "No messages"
                         )
 
@@ -94,10 +91,7 @@ def create_slack_tool(
                             return f"Slack Error: {data.get('error', 'unknown')}"
                         channels = data.get("channels", [])
                         return (
-                            "\n".join(
-                                f"  #{c['name']} ({c.get('num_members', 0)} members)"
-                                for c in channels
-                            )
+                            "\n".join(f"  #{c['name']} ({c.get('num_members', 0)} members)" for c in channels)
                             or "No channels"
                         )
 
