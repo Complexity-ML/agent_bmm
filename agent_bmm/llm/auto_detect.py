@@ -3,12 +3,95 @@
 """
 Auto-detect LLM provider from base_url or model name.
 
-No config needed — just pass the model name and we figure out the rest.
+Provider registry is data-driven — no hardcoded URLs scattered in code.
+All URLs and env var names are in PROVIDERS / MODEL_PREFIXES tables.
 """
 
 from __future__ import annotations
 
 import os
+
+# ── Provider registry (the ONLY place URLs live) ──
+
+PROVIDERS: dict[str, dict[str, str]] = {
+    "openai": {
+        "base_url": "https://api.openai.com/v1",
+        "api_key_env": "OPENAI_API_KEY",
+    },
+    "anthropic": {
+        "base_url": "https://api.anthropic.com/v1",
+        "api_key_env": "ANTHROPIC_API_KEY",
+    },
+    "groq": {
+        "base_url": "https://api.groq.com/openai/v1",
+        "api_key_env": "GROQ_API_KEY",
+        "provider": "openai",  # Groq is OpenAI-compatible
+    },
+    "together": {
+        "base_url": "https://api.together.xyz/v1",
+        "api_key_env": "TOGETHER_API_KEY",
+        "provider": "openai",  # Together is OpenAI-compatible
+    },
+    "ollama": {
+        "base_url_env": "OLLAMA_BASE_URL",
+        "base_url_default": "http://localhost:11434",
+        "api_key_env": "",
+        "provider": "openai",  # Ollama exposes OpenAI-compatible /v1
+    },
+    "local": {
+        "base_url_env": "AGENT_BMM_LOCAL_URL",
+        "base_url_default": "http://localhost:8081/v1",
+        "api_key_env": "",
+        "provider": "openai",
+    },
+}
+
+# model prefix → provider name
+MODEL_PREFIXES: list[tuple[str, str]] = [
+    ("gpt-", "openai"),
+    ("o1-", "openai"),
+    ("o3-", "openai"),
+    ("o4-", "openai"),
+    ("claude-", "anthropic"),
+    ("ollama:", "ollama"),
+]
+
+# Keywords in model name → try these providers in order
+MODEL_KEYWORDS: dict[str, list[str]] = {
+    "llama": ["groq", "together", "local"],
+    "mistral": ["groq", "together", "local"],
+    "qwen": ["groq", "together", "local"],
+    "gemma": ["groq", "together", "local"],
+    "phi": ["local"],
+}
+
+# URL substring → provider name
+URL_HINTS: list[tuple[str, str]] = [
+    ("anthropic.com", "anthropic"),
+    ("openai.com", "openai"),
+    ("groq.com", "groq"),
+    ("together.xyz", "together"),
+    ("localhost", "local"),
+    ("127.0.0.1", "local"),
+]
+
+
+def _resolve_provider(name: str) -> tuple[str, str, str]:
+    """Resolve a provider name to (provider_type, base_url, api_key)."""
+    info = PROVIDERS.get(name, PROVIDERS["openai"])
+    provider_type = info.get("provider", name)
+
+    # Base URL: check env var first, then default
+    if "base_url_env" in info and info["base_url_env"]:
+        base_url = os.environ.get(info["base_url_env"], info.get("base_url_default", ""))
+    else:
+        base_url = info.get("base_url", "")
+
+    # API key from env
+    api_key_env = info.get("api_key_env", "")
+    api_key = os.environ.get(api_key_env, "") if api_key_env else ""
+
+    return provider_type, base_url, api_key
 
 
 def detect_provider(model: str = "", base_url: str = "") -> tuple[str, str, str]:
@@ -17,52 +100,33 @@ def detect_provider(model: str = "", base_url: str = "") -> tuple[str, str, str]
 
     Returns:
         (provider, base_url, api_key)
-
-    Examples:
-        detect_provider(model="gpt-4o") → ("openai", "https://api.openai.com/v1", "sk-...")
-        detect_provider(model="claude-sonnet-4-20250514") → ("anthropic", "https://api.anthropic.com/v1", "sk-ant-...")
-        detect_provider(base_url="http://localhost:8081/v1") → ("openai", "http://localhost:8081/v1", "")
     """
-
-    # Detect from base_url
+    # 1. Detect from base_url
     if base_url:
-        if "anthropic.com" in base_url:
-            return "anthropic", base_url, os.environ.get("ANTHROPIC_API_KEY", "")
-        if "openai.com" in base_url:
-            return "openai", base_url, os.environ.get("OPENAI_API_KEY", "")
-        if "groq.com" in base_url:
-            return "openai", base_url, os.environ.get("GROQ_API_KEY", "")
-        if "together.xyz" in base_url:
-            return "openai", base_url, os.environ.get("TOGETHER_API_KEY", "")
-        if "localhost" in base_url or "127.0.0.1" in base_url:
-            return "openai", base_url, ""
+        for hint, provider_name in URL_HINTS:
+            if hint in base_url:
+                provider_type, _, api_key = _resolve_provider(provider_name)
+                return provider_type, base_url, api_key
         # Unknown URL — assume OpenAI-compatible
         return "openai", base_url, ""
 
-    # Detect from model name
-    if model.startswith("gpt-") or model.startswith("o1-") or model.startswith("o3-"):
-        return "openai", "https://api.openai.com/v1", os.environ.get("OPENAI_API_KEY", "")
+    # 2. Detect from model prefix
+    for prefix, provider_name in MODEL_PREFIXES:
+        if model.startswith(prefix):
+            if provider_name == "ollama":
+                ollama_model = model.split(":", 1)[1]
+                _, base_url, _ = _resolve_provider("ollama")
+                return "openai", f"{base_url}/v1", f"ollama:{ollama_model}"
+            return _resolve_provider(provider_name)
 
-    if model.startswith("claude-"):
-        return "anthropic", "https://api.anthropic.com/v1", os.environ.get("ANTHROPIC_API_KEY", "")
-
-    # Ollama local models: "ollama:codellama", "ollama:llama3"
-    if model.startswith("ollama:"):
-        ollama_model = model.split(":", 1)[1]
-        ollama_url = os.environ.get("OLLAMA_BASE_URL", "http://localhost:11434")
-        return "openai", f"{ollama_url}/v1", f"ollama:{ollama_model}"
-
+    # 3. Detect from model name keywords
     model_lower = model.lower()
-    if "llama" in model_lower or "mistral" in model_lower or "qwen" in model_lower:
-        # Open models — check for Groq/Together first, fallback to local
-        groq_key = os.environ.get("GROQ_API_KEY", "")
-        if groq_key:
-            return "openai", "https://api.groq.com/openai/v1", groq_key
-        together_key = os.environ.get("TOGETHER_API_KEY", "")
-        if together_key:
-            return "openai", "https://api.together.xyz/v1", together_key
-        # Assume local vLLM
-        return "openai", "http://localhost:8081/v1", ""
+    for keyword, provider_chain in MODEL_KEYWORDS.items():
+        if keyword in model_lower:
+            for provider_name in provider_chain:
+                provider_type, base_url, api_key = _resolve_provider(provider_name)
+                if api_key or provider_name == "local":
+                    return provider_type, base_url, api_key
 
-    # Default: OpenAI
-    return "openai", "https://api.openai.com/v1", os.environ.get("OPENAI_API_KEY", "")
+    # 4. Default: OpenAI
+    return _resolve_provider("openai")
