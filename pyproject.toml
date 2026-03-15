@@ -8,49 +8,79 @@ version = "0.1.0"
 description = "GPU-accelerated agent framework with Batched Matrix Multiply dispatch"
 license = "CC-BY-NC-4.0"
 requires-python = ">=3.10"
+readme = "README.md"
 authors = [
     {name = "INL Dynamics / Complexity-ML"},
 ]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 
+# Minimal deps for `pip install agent-bmm` to work
 dependencies = [
-    # Tier 1 — Core
-    "torch>=2.0",
-    "tokenizers>=0.15",
     "aiohttp>=3.9",
-    "pydantic>=2.0",
-
-    # Tier 2 — Performance
-    "triton>=2.1",
-    "faiss-gpu>=1.7",
-    "uvloop>=0.19",
     "orjson>=3.9",
-
-    # Tier 3 — Features
-    "sentence-transformers>=2.2",
-    "safetensors>=0.4",
-    "torchvision>=0.15",
-    "torchaudio>=2.0",
-    "numpy>=1.24",
-
-    # Tier 4 — DX
     "rich>=13.0",
     "websockets>=12.0",
+    "pydantic>=2.0",
 ]
 
 [project.scripts]
 agent-bmm = "agent_bmm.cli:main"
 
 [project.optional-dependencies]
+# GPU — the full BMM experience
+gpu = [
+    "torch>=2.0",
+    "triton>=2.1",
+    "faiss-gpu>=1.7",
+    "sentence-transformers>=2.2",
+    "safetensors>=0.4",
+    "numpy>=1.24",
+]
+# CPU — torch without CUDA
+cpu = [
+    "torch>=2.0",
+    "numpy>=1.24",
+]
+# Browser automation
 browser = [
     "playwright>=1.40",
 ]
+# Smart context (TF-IDF file ranking)
+smart = [
+    "scikit-learn>=1.3",
+]
+# All optional deps
+all = [
+    "agent-bmm[gpu,browser,smart]",
+]
+# Dev tools
 dev = [
     "pytest>=7.0",
+    "pytest-asyncio>=0.23",
     "ruff>=0.1",
+    "mypy>=1.8",
 ]
+
+[project.urls]
+Repository = "https://github.com/Complexity-ML/agent_bmm"
+Issues = "https://github.com/Complexity-ML/agent_bmm/issues"
+
+[tool.setuptools.packages.find]
+include = ["agent_bmm*"]
 
 [tool.ruff]
 line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"

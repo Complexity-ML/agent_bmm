@@ -230,6 +230,21 @@ def get_config() -> dict[str, Any]:
     return _cached_config
 
 
+def load_profile(name: str) -> dict[str, Any]:
+    """Load a named config profile from ~/.agent-bmm/profiles/<name>.yaml."""
+    profile_dir = Path.home() / ".agent-bmm" / "profiles"
+    for ext in (".yaml", ".yml", ".json"):
+        path = profile_dir / f"{name}{ext}"
+        if path.exists():
+            file_config = _load_config_file(str(path))
+            if file_config:
+                return load_config(cli_overrides=file_config)
+    raise FileNotFoundError(
+        f"Profile '{name}' not found in {profile_dir}. "
+        f"Create {profile_dir / name}.yaml"
+    )
+
+
 def generate_default_config() -> str:
     """Generate a default agent-bmm.yaml config file content."""
     return """# agent-bmm configuration
