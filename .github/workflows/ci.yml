@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install rich aiohttp orjson pydantic websockets
+
+      - name: Run tests
+        run: |
+          python tests/test_router.py
+          python tests/test_tools.py
+          python tests/test_retry.py
+          python tests/test_persistence.py
+          python tests/test_security.py
+          python tests/test_telemetry.py
+
+      - name: Check imports
+        run: |
+          python -c "from agent_bmm.core.router import BMMRouter; print('OK: router')"
+          python -c "from agent_bmm.tools.registry import Tool, ToolRegistry; print('OK: tools')"
+          python -c "from agent_bmm.security import RateLimiter, APIKeyManager; print('OK: security')"
+          python -c "from agent_bmm.telemetry import MetricsCollector; print('OK: telemetry')"
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install ruff
+        run: pip install ruff
+
+      - name: Lint
+        run: ruff check agent_bmm/
+
+      - name: Format check
+        run: ruff format --check agent_bmm/
