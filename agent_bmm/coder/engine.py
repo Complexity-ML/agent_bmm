@@ -65,10 +65,12 @@ class CoderAgent:
         max_steps: int = 20,
         auto_commit: bool = False,
         permission: str = "allow_reads",
+        stream: bool = True,
     ):
         self.project_dir = Path(project_dir).resolve()
         self.max_steps = max_steps
         self.auto_commit = auto_commit
+        self.stream = stream
         self.llm = LLMBackend(
             LLMConfig(
                 model=model,
@@ -467,7 +469,16 @@ class CoderAgent:
         self.history = self.ctx.truncate(self.history)
 
         try:
-            response = await self.llm.chat(self.history)
+            if self.stream:
+                # Stream tokens to terminal
+                console.print("  [dim]", end="")
+                response = await self.llm.chat_stream(
+                    self.history,
+                    on_token=lambda t: console.print(t, end="", highlight=False),
+                )
+                console.print("[/]")
+            else:
+                response = await self.llm.chat(self.history)
         except Exception as e:
             self.history.append({"role": "user", "content": f"LLM Error: {e}. Try again."})
             return None

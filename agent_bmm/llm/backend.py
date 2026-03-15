@@ -129,6 +129,55 @@ class LLMBackend:
             data = await resp.json()
             return data["choices"][0]["message"]["content"]
 
+    async def chat_stream(
+        self,
+        messages: list[dict[str, str]],
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        on_token: Any = None,
+        **kwargs: Any,
+    ) -> str:
+        """Stream a chat completion token by token. Returns full response."""
+        import json as json_mod
+
+        session = await self._get_session()
+        payload = {
+            "model": self.config.model,
+            "messages": messages,
+            "max_tokens": max_tokens or self.config.max_tokens,
+            "temperature": temperature or self.config.temperature,
+            "stream": True,
+            **kwargs,
+        }
+        headers = {}
+        if self.config.api_key:
+            headers["Authorization"] = f"Bearer {self.config.api_key}"
+        headers["Content-Type"] = "application/json"
+
+        url = f"{self.config.base_url}/chat/completions"
+        full_response = []
+
+        async with session.post(url, json=payload, headers=headers) as resp:
+            async for line in resp.content:
+                line = line.decode(errors="replace").strip()
+                if not line or not line.startswith("data: "):
+                    continue
+                data = line[6:]
+                if data == "[DONE]":
+                    break
+                try:
+                    chunk = json_mod.loads(data)
+                    delta = chunk["choices"][0]["delta"]
+                    content = delta.get("content", "")
+                    if content:
+                        full_response.append(content)
+                        if on_token:
+                            on_token(content)
+                except (json_mod.JSONDecodeError, KeyError, IndexError):
+                    continue
+
+        return "".join(full_response)
+
     async def close(self):
         if self._session and not self._session.closed:
             await self._session.close()
