@@ -436,6 +436,14 @@ class CoderAgent:
             {"role": "user", "content": task},
         ]
 
+        try:
+            return await self._run_loop(t0)
+        except KeyboardInterrupt:
+            await self.llm.close()
+            console.print("\n  [yellow]Interrupted by user.[/]")
+            return "Interrupted"
+
+    async def _run_loop(self, t0: float) -> str:
         for step in range(1, self.max_steps + 1):
             summary = await self._step(step)
             if summary:
@@ -459,4 +467,8 @@ class CoderAgent:
         return "Max steps reached"
 
     def run(self, task: str) -> str:
-        return asyncio.run(self.arun(task))
+        try:
+            return asyncio.run(self.arun(task))
+        except KeyboardInterrupt:
+            console.print("\n  [yellow]Interrupted.[/]")
+            return "Interrupted"
