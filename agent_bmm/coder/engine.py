@@ -60,7 +60,7 @@ class CoderAgent:
         base_url: str = "https://api.openai.com/v1",
         api_key: str = "",
         project_dir: str = ".",
-        max_steps: int = 10,
+        max_steps: int = 20,
         auto_commit: bool = False,
     ):
         self.project_dir = Path(project_dir).resolve()
