@@ -14,10 +14,14 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import logging
 import sys
 import tempfile
 import time
 from pathlib import Path
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
@@ -87,23 +91,25 @@ async def run_all(models: list[str], max_steps: int = 15):
     """Run all benchmarks for all models."""
     results = []
     for model in models:
-        print(f"\n{'='*60}")
-        print(f"Model: {model}")
-        print(f"{'='*60}")
+        logger.info(f"\n{'=' * 60}")
+        logger.info(f"Model: {model}")
+        logger.info(f"{'=' * 60}")
         for task in TASKS:
-            print(f"\n  Task: {task['name']}...")
+            logger.info(f"\n  Task: {task['name']}...")
             try:
                 r = await run_benchmark(model, task, max_steps)
                 status = "PASS" if r["passed"] else "FAIL"
-                print(f"  {status} | {r['steps']} steps | {r['time_s']}s | ~{r['tokens']} tokens")
+                logger.info(f"  {status} | {r['steps']} steps | {r['time_s']}s | ~{r['tokens']} tokens")
                 results.append(r)
             except Exception as e:
-                print(f"  ERROR: {e}")
-                results.append({
-                    "task": task["name"],
-                    "model": model,
-                    "error": str(e),
-                })
+                logger.info(f"  ERROR: {e}")
+                results.append(
+                    {
+                        "task": task["name"],
+                        "model": model,
+                        "error": str(e),
+                    }
+                )
     return results
 
 
@@ -119,17 +125,17 @@ def main():
 
     if args.output:
         Path(args.output).write_text(json.dumps(results, indent=2))
-        print(f"\nResults saved to {args.output}")
+        logger.info(f"\nResults saved to {args.output}")
 
     # Summary table
-    print(f"\n{'='*60}")
-    print(f"{'Task':<20} {'Model':<20} {'Steps':<8} {'Time':<8} {'Pass'}")
-    print(f"{'-'*60}")
+    logger.info(f"\n{'=' * 60}")
+    logger.info(f"{'Task':<20} {'Model':<20} {'Steps':<8} {'Time':<8} {'Pass'}")
+    logger.info(f"{'-' * 60}")
     for r in results:
         if "error" in r:
-            print(f"{r['task']:<20} {r['model']:<20} {'ERR':<8}")
+            logger.info(f"{r['task']:<20} {r['model']:<20} {'ERR':<8}")
         else:
-            print(f"{r['task']:<20} {r['model']:<20} {str(r['steps']):<8} {r['time_s']:<8} {r['passed']}")
+            logger.info(f"{r['task']:<20} {r['model']:<20} {str(r['steps']):<8} {r['time_s']:<8} {r['passed']}")
 
 
 if __name__ == "__main__":

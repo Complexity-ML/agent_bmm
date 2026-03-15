@@ -10,6 +10,7 @@ compared to the traditional sequential loop approach.
 
 import time
 import sys
+
 sys.path.insert(0, ".")
 
 import torch
@@ -21,7 +22,9 @@ from rich.table import Table
 console = Console()
 
 
-def bench_sequential(x: torch.Tensor, weights_up: torch.Tensor, weights_down: torch.Tensor, expert_ids: torch.Tensor, num_experts: int):
+def bench_sequential(
+    x: torch.Tensor, weights_up: torch.Tensor, weights_down: torch.Tensor, expert_ids: torch.Tensor, num_experts: int
+):
     """Sequential dispatch — one expert at a time (LangChain-style)."""
     N, H = x.shape
     I = weights_up.shape[2]
@@ -37,7 +40,9 @@ def bench_sequential(x: torch.Tensor, weights_up: torch.Tensor, weights_down: to
     return output
 
 
-def bench_bmm(x: torch.Tensor, weights_up: torch.Tensor, weights_down: torch.Tensor, expert_ids: torch.Tensor, num_experts: int):
+def bench_bmm(
+    x: torch.Tensor, weights_up: torch.Tensor, weights_down: torch.Tensor, expert_ids: torch.Tensor, num_experts: int
+):
     """BMM parallel dispatch — all experts at once."""
     sel_up = weights_up[expert_ids]
     sel_down = weights_down[expert_ids]

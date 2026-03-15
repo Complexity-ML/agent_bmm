@@ -25,10 +25,13 @@ Usage:
 from __future__ import annotations
 
 import importlib
+import logging
 import sys
 from typing import Any
 
 from agent_bmm.tools.registry import Tool
+
+logger = logging.getLogger(__name__)
 
 
 def discover_plugins() -> dict[str, str]:
@@ -78,7 +81,7 @@ def load_plugin(name: str, **kwargs: Any) -> Tool | None:
         factory = getattr(module, attr_name)
         return factory(**kwargs)
     except Exception as e:
-        print(f"Failed to load plugin {name}: {e}")
+        logger.warning("Failed to load plugin %s: %s", name, e)
         return None
 
 

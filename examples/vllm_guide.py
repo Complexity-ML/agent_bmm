@@ -25,9 +25,13 @@ Usage:
 """
 
 import asyncio
+import logging
 import sys
 
 sys.path.insert(0, ".")
+
+logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
 from agent_bmm.agent import Agent
 
@@ -37,15 +41,14 @@ async def main():
     agent = Agent(
         model="meta-llama/Llama-3-8B-Instruct",
         base_url="http://localhost:8081/v1",  # vLLM OpenAI-compatible endpoint
-        provider="openai",                     # vLLM speaks OpenAI protocol
+        provider="openai",  # vLLM speaks OpenAI protocol
         tools="all",
     )
 
-    print("Agent BMM + vLLM Integration")
-    print("=" * 40)
-    print(f"Model: {agent._llm_config.model}")
-    print(f"URL:   {agent._llm_config.base_url}")
-    print()
+    logger.info("Agent BMM + vLLM Integration")
+    logger.info("=" * 40)
+    logger.info("Model: %s", agent._llm_config.model)
+    logger.info("URL:   %s", agent._llm_config.base_url)
 
     # Example queries
     queries = [
@@ -54,13 +57,13 @@ async def main():
     ]
 
     for query in queries:
-        print(f"Q: {query}")
+        logger.info("Q: %s", query)
         try:
             answer = await agent.ask(query)
-            print(f"A: {answer}\n")
+            logger.info("A: %s\n", answer)
         except Exception as e:
-            print(f"Error: {e}")
-            print("Make sure vLLM is running: vllm serve <model> --port 8081\n")
+            logger.error("Error: %s", e)
+            logger.info("Make sure vLLM is running: vllm serve <model> --port 8081")
             break
 
 
