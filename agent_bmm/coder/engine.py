@@ -459,7 +459,7 @@ class CoderAgent:
                     Panel(
                         f"[bold white]{summary}[/]",
                         title="[bold green]Done[/]",
-                        subtitle=f"[dim]{step} steps · {elapsed:.1f}s[/]",
+                        subtitle=f"[dim]{step} steps · {elapsed:.1f}s · ~{self._estimate_tokens()} tokens[/]",
                         border_style="green",
                     )
                 )
@@ -471,6 +471,10 @@ class CoderAgent:
         await self.llm.close()
         console.print(f"\n  [yellow]Max steps ({self.max_steps}) reached.[/]")
         return "Max steps reached"
+
+    def _estimate_tokens(self) -> int:
+        """Rough token estimate from conversation history."""
+        return sum(len(m.get("content", "")) for m in self.history) // 4
 
     def run(self, task: str) -> str:
         try:

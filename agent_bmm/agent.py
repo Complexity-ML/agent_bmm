@@ -59,6 +59,15 @@ class Agent:
         self._routing = routing
         self._max_steps = max_steps
 
+        # Auto-detect provider if not specified
+        if not base_url or not api_key:
+            from agent_bmm.llm.auto_detect import detect_provider
+
+            detected_provider, detected_url, detected_key = detect_provider(model, base_url)
+            provider = provider or detected_provider
+            base_url = base_url or detected_url
+            api_key = api_key or detected_key
+
         self._llm_config = LLMConfig(
             provider=provider,
             base_url=base_url,

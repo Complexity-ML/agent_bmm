@@ -180,6 +180,18 @@ def cmd_code(args):
     coder.run(task)
 
 
+def cmd_chat(args):
+    """Interactive coding agent chat."""
+    from agent_bmm.coder.chat import ChatSession
+
+    session = ChatSession(
+        model=args.model,
+        project_dir=args.dir,
+        max_steps=args.max_steps,
+    )
+    session.run()
+
+
 def cmd_workflow(args):
     """Run a YAML/JSON workflow."""
     from agent_bmm.workflow import run_workflow
@@ -255,6 +267,13 @@ def main():
     p_code.add_argument("-d", "--dir", default=".", help="Project directory")
     p_code.add_argument("--max-steps", type=int, default=20, help="Max agent steps")
     p_code.set_defaults(func=cmd_code)
+
+    # chat
+    p_chat = sub.add_parser("chat", help="Interactive coding agent chat")
+    p_chat.add_argument("-m", "--model", default="gpt-4o-mini", help="LLM model")
+    p_chat.add_argument("-d", "--dir", default=".", help="Project directory")
+    p_chat.add_argument("--max-steps", type=int, default=20, help="Max steps per request")
+    p_chat.set_defaults(func=cmd_chat)
 
     # config
     p_config = sub.add_parser("config", help="Config management")
