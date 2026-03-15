@@ -347,8 +347,10 @@ class CoderAgent:
         if act == "read":
             return self.read_file(action.get("path", ""))
         elif act == "write":
-            r = self.write_file(action.get("path", ""), action.get("content", ""))
-            console.print(f"  [green]Write:[/] {action.get('path')}")
+            path = action.get("path", "")
+            r = self.write_file(path, action.get("content", ""))
+            console.print(f"  [green]Write:[/] {path}")
+            self._auto_open(path)
             return r
         elif act == "edit":
             r = self.edit_file(action.get("path", ""), action.get("old", ""), action.get("new", ""))
@@ -471,6 +473,24 @@ class CoderAgent:
         await self.llm.close()
         console.print(f"\n  [yellow]Max steps ({self.max_steps}) reached.[/]")
         return "Max steps reached"
+
+    def _auto_open(self, path: str):
+        """Auto-open viewable files in browser/app."""
+        ext = Path(path).suffix.lower()
+        if ext in {".html", ".htm", ".svg"}:
+            import webbrowser
+
+            full = (self.project_dir / path).resolve()
+            if full.exists():
+                webbrowser.open(f"file:///{full}")
+                console.print("  [dim]Opened in browser[/]")
+        elif ext in {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".pdf"}:
+            import webbrowser
+
+            full = (self.project_dir / path).resolve()
+            if full.exists():
+                webbrowser.open(f"file:///{full}")
+                console.print("  [dim]Opened file[/]")
 
     def _estimate_tokens(self) -> int:
         """Rough token estimate from conversation history."""
