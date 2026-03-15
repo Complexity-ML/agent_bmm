@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 
 import aiohttp
-import orjson
 
 from agent_bmm.tools.registry import Tool
 
@@ -52,7 +51,8 @@ def create_slack_tool(
                     payload = {"channel": channel, "text": message}
                     async with session.post(
                         f"{base}/chat.postMessage",
-                        json=payload, headers=headers,
+                        json=payload,
+                        headers=headers,
                         timeout=aiohttp.ClientTimeout(total=timeout),
                     ) as resp:
                         data = await resp.json()
@@ -66,17 +66,21 @@ def create_slack_tool(
                     payload = {"channel": channel, "limit": min(count, 50)}
                     async with session.post(
                         f"{base}/conversations.history",
-                        json=payload, headers=headers,
+                        json=payload,
+                        headers=headers,
                         timeout=aiohttp.ClientTimeout(total=timeout),
                     ) as resp:
                         data = await resp.json()
                         if not data.get("ok"):
                             return f"Slack Error: {data.get('error', 'unknown')}"
                         messages = data.get("messages", [])
-                        return "\n".join(
-                            f"  [{m.get('user', '?')}]: {m.get('text', '')[:200]}"
-                            for m in messages[:count]
-                        ) or "No messages"
+                        return (
+                            "\n".join(
+                                f"  [{m.get('user', '?')}]: {m.get('text', '')[:200]}"
+                                for m in messages[:count]
+                            )
+                            or "No messages"
+                        )
 
                 elif cmd == "channels":
                     async with session.post(
@@ -89,10 +93,13 @@ def create_slack_tool(
                         if not data.get("ok"):
                             return f"Slack Error: {data.get('error', 'unknown')}"
                         channels = data.get("channels", [])
-                        return "\n".join(
-                            f"  #{c['name']} ({c.get('num_members', 0)} members)"
-                            for c in channels
-                        ) or "No channels"
+                        return (
+                            "\n".join(
+                                f"  #{c['name']} ({c.get('num_members', 0)} members)"
+                                for c in channels
+                            )
+                            or "No channels"
+                        )
 
                 else:
                     return "Error: use send/read/channels"

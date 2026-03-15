@@ -13,10 +13,6 @@ No API keys, no rate limits. Uses the host's browser to:
 
 from __future__ import annotations
 
-import asyncio
-import re
-from typing import Any
-
 from agent_bmm.tools.registry import Tool
 
 
@@ -38,6 +34,7 @@ class BrowserSession:
     async def _ensure_browser(self):
         if self._browser is None:
             from playwright.async_api import async_playwright
+
             self._playwright = await async_playwright().start()
             self._browser = await self._playwright.chromium.launch(
                 headless=self.headless
@@ -87,7 +84,7 @@ async def _search_google(query: str, max_results: int = 5) -> str:
             link = await link_el.get_attribute("href") if link_el else ""
 
             if title:
-                results.append(f"{len(results)+1}. {title}\n   {snippet}\n   {link}")
+                results.append(f"{len(results) + 1}. {title}\n   {snippet}\n   {link}")
 
         return "\n\n".join(results) if results else f"No results for: {query}"
     finally:
@@ -159,7 +156,7 @@ async def _extract_links(url: str, max_links: int = 20) -> str:
             }});
             return links.slice(0, {max_links});
         }}""")
-        return "\n".join(f"  {l}" for l in links) if links else "No links found"
+        return "\n".join(f"  {link}" for link in links) if links else "No links found"
     finally:
         await page.close()
 

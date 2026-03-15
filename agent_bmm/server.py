@@ -58,17 +58,18 @@ class AgentWebSocketServer:
         """Handle a single WebSocket client."""
         self._connections.add(websocket)
         client_id = id(websocket)
-        console.print(f"[cyan]Client {client_id} connected[/] ({len(self._connections)} total)")
+        console.print(
+            f"[cyan]Client {client_id} connected[/] ({len(self._connections)} total)"
+        )
 
         try:
             async for message in websocket:
                 try:
                     data = json.loads(message)
                 except json.JSONDecodeError:
-                    await websocket.send(json.dumps({
-                        "type": "error",
-                        "data": "Invalid JSON"
-                    }))
+                    await websocket.send(
+                        json.dumps({"type": "error", "data": "Invalid JSON"})
+                    )
                     continue
 
                 msg_type = data.get("type", "")
@@ -76,10 +77,9 @@ class AgentWebSocketServer:
                 if msg_type == "query":
                     query = data.get("text", "")
                     if not query:
-                        await websocket.send(json.dumps({
-                            "type": "error",
-                            "data": "Empty query"
-                        }))
+                        await websocket.send(
+                            json.dumps({"type": "error", "data": "Empty query"})
+                        )
                         continue
 
                     # Process query with streaming events
@@ -94,21 +94,31 @@ class AgentWebSocketServer:
                     tools = []
                     for i in range(chain.tools.num_tools):
                         t = chain.tools.get(i)
-                        tools.append({
-                            "index": i,
-                            "name": t.name,
-                            "description": t.description,
-                        })
-                    await websocket.send(json.dumps({
-                        "type": "tools",
-                        "data": tools,
-                    }))
+                        tools.append(
+                            {
+                                "index": i,
+                                "name": t.name,
+                                "description": t.description,
+                            }
+                        )
+                    await websocket.send(
+                        json.dumps(
+                            {
+                                "type": "tools",
+                                "data": tools,
+                            }
+                        )
+                    )
 
                 else:
-                    await websocket.send(json.dumps({
-                        "type": "error",
-                        "data": f"Unknown message type: {msg_type}"
-                    }))
+                    await websocket.send(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "data": f"Unknown message type: {msg_type}",
+                            }
+                        )
+                    )
 
         except websockets.exceptions.ConnectionClosed:
             pass
@@ -120,10 +130,14 @@ class AgentWebSocketServer:
         """Process a query and stream events to the client."""
         t0 = time.time()
 
-        await websocket.send(json.dumps({
-            "type": "start",
-            "query": query,
-        }))
+        await websocket.send(
+            json.dumps(
+                {
+                    "type": "start",
+                    "query": query,
+                }
+            )
+        )
 
         try:
             # Build chain and run
@@ -132,17 +146,25 @@ class AgentWebSocketServer:
             # Override chain to emit WS events
             answer = await self._run_with_events(chain, websocket, query)
 
-            await websocket.send(json.dumps({
-                "type": "answer",
-                "data": answer,
-                "time_ms": (time.time() - t0) * 1000,
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "answer",
+                        "data": answer,
+                        "time_ms": (time.time() - t0) * 1000,
+                    }
+                )
+            )
 
         except Exception as e:
-            await websocket.send(json.dumps({
-                "type": "error",
-                "data": str(e),
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "error",
+                        "data": str(e),
+                    }
+                )
+            )
 
         await websocket.send(json.dumps({"type": "done"}))
 
@@ -154,43 +176,59 @@ class AgentWebSocketServer:
         for step in range(chain.config.max_steps):
             # Think
             thought = await chain._think()
-            await websocket.send(json.dumps({
-                "type": "thinking",
-                "step": step + 1,
-                "data": thought[:500],
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "thinking",
+                        "step": step + 1,
+                        "data": thought[:500],
+                    }
+                )
+            )
 
             if chain.config.stop_on_final_answer and "[FINAL]" in thought:
                 return thought.split("[FINAL]")[-1].strip()
 
             # Route
             tool_ids = chain._route(thought)
-            await websocket.send(json.dumps({
-                "type": "route",
-                "step": step + 1,
-                "expert_ids": tool_ids,
-            }))
+            await websocket.send(
+                json.dumps(
+                    {
+                        "type": "route",
+                        "step": step + 1,
+                        "expert_ids": tool_ids,
+                    }
+                )
+            )
 
             # Act
             unique_tools = set(tool_ids)
             for tid in unique_tools:
                 if tid < chain.tools.num_tools:
                     tool = chain.tools.get(tid)
-                    await websocket.send(json.dumps({
-                        "type": "tool_start",
-                        "tool": tool.name,
-                        "query": query[:200],
-                    }))
+                    await websocket.send(
+                        json.dumps(
+                            {
+                                "type": "tool_start",
+                                "tool": tool.name,
+                                "query": query[:200],
+                            }
+                        )
+                    )
 
             results = await chain._act(tool_ids, query)
 
             for result in results:
                 chain.memory.add_tool_result(result)
-                await websocket.send(json.dumps({
-                    "type": "tool_result",
-                    "tool": result.tool_name,
-                    "result": result.result[:500],
-                }))
+                await websocket.send(
+                    json.dumps(
+                        {
+                            "type": "tool_result",
+                            "tool": result.tool_name,
+                            "result": result.result[:500],
+                        }
+                    )
+                )
 
         return await chain._finalize()
 

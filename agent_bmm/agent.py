@@ -18,10 +18,10 @@ from __future__ import annotations
 
 import asyncio
 
-from agent_bmm.core.router import BMMRouter
 from agent_bmm.core.chain import AgentChain, ChainConfig
-from agent_bmm.tools.registry import Tool, ToolRegistry
+from agent_bmm.core.router import BMMRouter
 from agent_bmm.llm.backend import LLMBackend, LLMConfig
+from agent_bmm.tools.registry import Tool, ToolRegistry
 
 
 class Agent:

@@ -22,11 +22,9 @@ import time
 from dataclasses import dataclass
 
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 
-from agent_bmm.core.router import BMMRouter
 from agent_bmm.core.logging import AgentLogger
+from agent_bmm.core.router import BMMRouter
 from agent_bmm.llm.backend import LLMBackend, LLMConfig
 from agent_bmm.memory.context import ContextMemory
 
@@ -200,11 +198,14 @@ class MultiAgentOrchestrator:
         """Ask LLM if more agent rounds are needed."""
         messages = [
             {"role": "system", "content": "Answer YES or NO only."},
-            {"role": "user", "content": (
-                f"Query: {query}\n\n"
-                f"Agent results so far:\n{context[:1000]}\n\n"
-                "Do we need more agent rounds to fully answer this query?"
-            )},
+            {
+                "role": "user",
+                "content": (
+                    f"Query: {query}\n\n"
+                    f"Agent results so far:\n{context[:1000]}\n\n"
+                    "Do we need more agent rounds to fully answer this query?"
+                ),
+            },
         ]
         response = await self._llm.chat(messages, max_tokens=10)
         return "yes" in response.lower()
@@ -212,20 +213,23 @@ class MultiAgentOrchestrator:
     async def _synthesize(self, query: str, context: str) -> str:
         """Synthesize final answer from all agent results."""
         messages = [
-            {"role": "system", "content": (
-                "Synthesize a clear, comprehensive answer from the agent results below. "
-                "Combine the best information from each agent."
-            )},
-            {"role": "user", "content": (
-                f"Original query: {query}\n\n"
-                f"Agent results:\n{context}"
-            )},
+            {
+                "role": "system",
+                "content": (
+                    "Synthesize a clear, comprehensive answer from the agent results below. "
+                    "Combine the best information from each agent."
+                ),
+            },
+            {
+                "role": "user",
+                "content": (f"Original query: {query}\n\nAgent results:\n{context}"),
+            },
         ]
         return await self._llm.chat(messages)
 
     def _text_to_tensor(self, text: str) -> torch.Tensor:
         """Simple text → tensor for routing."""
         h = torch.zeros(1, self.hidden_size)
-        for i, c in enumerate(text.encode()[:self.hidden_size]):
+        for i, c in enumerate(text.encode()[: self.hidden_size]):
             h[0, i % self.hidden_size] += float(c) / 256.0
         return h

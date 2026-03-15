@@ -11,15 +11,10 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass, field
-from typing import Any
 
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
-from rich.live import Live
-from rich.text import Text
-from rich.progress import Progress, SpinnerColumn, TextColumn
-
 
 console = Console()
 
@@ -103,15 +98,17 @@ class AgentLogger:
             )
 
         if self.trace:
-            self.entries.append(BMMTraceEntry(
-                step=self._step,
-                timestamp=time.time(),
-                expert_ids=expert_ids,
-                expert_names=expert_names,
-                query="",
-                routing_strategy=routing_strategy,
-                dispatch_time_ms=dispatch_time_ms,
-            ))
+            self.entries.append(
+                BMMTraceEntry(
+                    step=self._step,
+                    timestamp=time.time(),
+                    expert_ids=expert_ids,
+                    expert_names=expert_names,
+                    query="",
+                    routing_strategy=routing_strategy,
+                    dispatch_time_ms=dispatch_time_ms,
+                )
+            )
 
     def log_tool_start(self, tool_name: str, query: str):
         """Log tool execution start."""
@@ -195,8 +192,7 @@ class AgentLogger:
 
         total_dispatch = sum(e.dispatch_time_ms for e in self.entries)
         total_tools = sum(
-            sum(t for t in e.tool_times_ms.values())
-            for e in self.entries
+            sum(t for t in e.tool_times_ms.values()) for e in self.entries
         )
         total = (time.time() - self._start_time) * 1000
 
@@ -217,6 +213,9 @@ class AgentLogger:
                 all_experts[name] = all_experts.get(name, 0) + 1
         total_routes = sum(all_experts.values())
         for name, count in sorted(all_experts.items()):
-            table.add_row(f"Expert: {name}", f"{count}/{total_routes} ({count/total_routes*100:.0f}%)")
+            table.add_row(
+                f"Expert: {name}",
+                f"{count}/{total_routes} ({count / total_routes * 100:.0f}%)",
+            )
 
         console.print(table)

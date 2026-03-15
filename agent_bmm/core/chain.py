@@ -19,9 +19,9 @@ from dataclasses import dataclass
 import torch
 
 from agent_bmm.core.router import BMMRouter
-from agent_bmm.tools.registry import ToolRegistry, Tool
-from agent_bmm.llm.backend import LLMBackend, LLMConfig
+from agent_bmm.llm.backend import LLMBackend
 from agent_bmm.memory.context import ContextMemory, ToolResult
+from agent_bmm.tools.registry import Tool, ToolRegistry
 
 
 @dataclass
@@ -107,9 +107,7 @@ class AgentChain:
             _, expert_ids = self.router(h)
         return expert_ids.tolist()
 
-    async def _act(
-        self, tool_ids: list[int], query: str
-    ) -> list[ToolResult]:
+    async def _act(self, tool_ids: list[int], query: str) -> list[ToolResult]:
         """Execute tools — parallel if configured."""
         results = []
         unique_tools = set(tool_ids)
@@ -126,12 +124,14 @@ class AgentChain:
                 if isinstance(res, Exception):
                     res = f"Error: {res}"
                 tool = self.tools.get(tid)
-                results.append(ToolResult(
-                    tool_name=tool.name,
-                    tool_index=tid,
-                    query=query,
-                    result=str(res),
-                ))
+                results.append(
+                    ToolResult(
+                        tool_name=tool.name,
+                        tool_index=tid,
+                        query=query,
+                        result=str(res),
+                    )
+                )
         else:
             # Sequential execution
             for tid in unique_tools:
@@ -141,12 +141,14 @@ class AgentChain:
                         res = await self._execute_tool(tool, query)
                     except Exception as e:
                         res = f"Error: {e}"
-                    results.append(ToolResult(
-                        tool_name=tool.name,
-                        tool_index=tid,
-                        query=query,
-                        result=str(res),
-                    ))
+                    results.append(
+                        ToolResult(
+                            tool_name=tool.name,
+                            tool_index=tid,
+                            query=query,
+                            result=str(res),
+                        )
+                    )
 
         return results
 
@@ -158,7 +160,7 @@ class AgentChain:
         """Ask LLM for final answer after max steps."""
         self.memory.add_turn(
             "user",
-            "Based on all the information gathered, provide your final answer. Prefix it with [FINAL]."
+            "Based on all the information gathered, provide your final answer. Prefix it with [FINAL].",
         )
         response = await self._think()
         if "[FINAL]" in response:
@@ -183,6 +185,6 @@ class AgentChain:
         # Simple hash-based embedding (placeholder)
         # In production, use the LLM's actual hidden states
         h = torch.zeros(1, self.router.hidden_size)
-        for i, c in enumerate(text.encode()[:self.router.hidden_size]):
+        for i, c in enumerate(text.encode()[: self.router.hidden_size]):
             h[0, i % self.router.hidden_size] += float(c) / 256.0
         return h

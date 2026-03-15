@@ -8,8 +8,6 @@ Supports SQLite, PostgreSQL, MySQL via standard Python DB-API.
 from __future__ import annotations
 
 import sqlite3
-import asyncio
-from typing import Any
 
 from agent_bmm.tools.registry import Tool
 
@@ -34,7 +32,15 @@ def create_sql_tool(
         """Validate and sanitize SQL query."""
         q = query.strip().upper()
         if read_only:
-            forbidden = ["INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE"]
+            forbidden = [
+                "INSERT",
+                "UPDATE",
+                "DELETE",
+                "DROP",
+                "ALTER",
+                "CREATE",
+                "TRUNCATE",
+            ]
             for word in forbidden:
                 if word in q:
                     return f"Error: {word} queries not allowed in read-only mode"
@@ -50,7 +56,9 @@ def create_sql_tool(
             if read_only:
                 conn.execute("PRAGMA query_only = ON")
             cursor = conn.execute(query)
-            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            columns = (
+                [desc[0] for desc in cursor.description] if cursor.description else []
+            )
             rows = cursor.fetchmany(max_rows)
             conn.close()
 
@@ -76,10 +84,13 @@ def create_sql_tool(
 
         try:
             import psycopg2
+
             conn = psycopg2.connect(connection_string)
             cursor = conn.cursor()
             cursor.execute(query)
-            columns = [desc[0] for desc in cursor.description] if cursor.description else []
+            columns = (
+                [desc[0] for desc in cursor.description] if cursor.description else []
+            )
             rows = cursor.fetchmany(max_rows)
             conn.close()
 
@@ -102,7 +113,9 @@ def create_sql_tool(
     elif connection_string:
         fn = _execute_pg
     else:
-        fn = lambda q: "Error: no database configured"
+
+        def fn(q):
+            return "Error: no database configured"
 
     return Tool(
         name="sql",

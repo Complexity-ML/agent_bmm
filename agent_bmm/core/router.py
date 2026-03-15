@@ -48,20 +48,14 @@ class BMMRouter(nn.Module):
         self.top_k = top_k
 
         # Expert weights packed for BMM
-        self.up_proj = nn.Parameter(
-            torch.empty(num_tools, hidden_size, expert_size)
-        )
-        self.down_proj = nn.Parameter(
-            torch.empty(num_tools, expert_size, hidden_size)
-        )
+        self.up_proj = nn.Parameter(torch.empty(num_tools, hidden_size, expert_size))
+        self.down_proj = nn.Parameter(torch.empty(num_tools, expert_size, hidden_size))
 
         # Routing head
         if routing == "learned":
             self.router_head = nn.Linear(hidden_size, num_tools, bias=False)
         elif routing == "embedding":
-            self.tool_embeddings = nn.Parameter(
-                torch.empty(num_tools, hidden_size)
-            )
+            self.tool_embeddings = nn.Parameter(torch.empty(num_tools, hidden_size))
 
         # Gated residual — starts at 0 (safe plug-in, no disruption)
         self.gate = nn.Linear(hidden_size, 1, bias=False)
@@ -132,7 +126,7 @@ class BMMRouter(nn.Module):
             (N, H) expert outputs
         """
         # Select each query's expert weights
-        sel_up = self.up_proj[expert_ids]      # (N, H, E)
+        sel_up = self.up_proj[expert_ids]  # (N, H, E)
         sel_down = self.down_proj[expert_ids]  # (N, E, H)
 
         # Up: (N, 1, H) @ (N, H, E) → (N, E)

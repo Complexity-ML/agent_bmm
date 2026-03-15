@@ -11,8 +11,8 @@ from __future__ import annotations
 import asyncio
 import random
 import time
-from dataclasses import dataclass, field
-from typing import Any, Callable, Awaitable
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable
 
 
 @dataclass
@@ -99,7 +99,7 @@ async def retry_async(
 
             if attempt < config.max_retries:
                 delay = min(
-                    config.base_delay * (config.exponential_base ** attempt),
+                    config.base_delay * (config.exponential_base**attempt),
                     config.max_delay,
                 )
                 if config.jitter:
@@ -129,7 +129,7 @@ def retry_sync(
             last_error = e
             if attempt < config.max_retries:
                 delay = min(
-                    config.base_delay * (config.exponential_base ** attempt),
+                    config.base_delay * (config.exponential_base**attempt),
                     config.max_delay,
                 )
                 if config.jitter:

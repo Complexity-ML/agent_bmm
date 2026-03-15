@@ -9,23 +9,40 @@ from __future__ import annotations
 
 import ast
 import io
-import sys
 import traceback
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 
 from agent_bmm.tools.registry import Tool
 
 # Blocked modules and builtins
 _BLOCKED_MODULES = {
-    "os", "subprocess", "shutil", "sys", "importlib",
-    "ctypes", "socket", "http", "urllib", "requests",
-    "pathlib", "glob", "tempfile", "signal", "threading",
+    "os",
+    "subprocess",
+    "shutil",
+    "sys",
+    "importlib",
+    "ctypes",
+    "socket",
+    "http",
+    "urllib",
+    "requests",
+    "pathlib",
+    "glob",
+    "tempfile",
+    "signal",
+    "threading",
     "multiprocessing",
 }
 
 _BLOCKED_BUILTINS = {
-    "exec", "eval", "compile", "__import__", "open",
-    "breakpoint", "exit", "quit",
+    "exec",
+    "eval",
+    "compile",
+    "__import__",
+    "open",
+    "breakpoint",
+    "exit",
+    "quit",
 }
 
 
@@ -73,14 +90,15 @@ def create_code_exec_tool(
             return f"Validation Error: {error}"
 
         # Restricted namespace
-        safe_builtins = {
-            k: v for k, v in __builtins__.items()
-            if k not in _BLOCKED_BUILTINS
-        } if isinstance(__builtins__, dict) else {
-            k: getattr(__builtins__, k)
-            for k in dir(__builtins__)
-            if k not in _BLOCKED_BUILTINS and not k.startswith("_")
-        }
+        safe_builtins = (
+            {k: v for k, v in __builtins__.items() if k not in _BLOCKED_BUILTINS}
+            if isinstance(__builtins__, dict)
+            else {
+                k: getattr(__builtins__, k)
+                for k in dir(__builtins__)
+                if k not in _BLOCKED_BUILTINS and not k.startswith("_")
+            }
+        )
 
         namespace = {
             "__builtins__": safe_builtins,
@@ -112,16 +130,19 @@ def create_code_exec_tool(
         }
 
         # Import safe modules
-        import math
-        import json
-        import re
         import datetime
-        namespace.update({
-            "math": math,
-            "json": json,
-            "re": re,
-            "datetime": datetime,
-        })
+        import json
+        import math
+        import re
+
+        namespace.update(
+            {
+                "math": math,
+                "json": json,
+                "re": re,
+                "datetime": datetime,
+            }
+        )
 
         # Execute with captured output
         stdout = io.StringIO()

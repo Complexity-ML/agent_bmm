@@ -9,8 +9,6 @@ Protects the agent API from abuse and manages multi-user access.
 from __future__ import annotations
 
 import hashlib
-import hmac
-import os
 import secrets
 import time
 from collections import defaultdict

@@ -11,10 +11,8 @@ compatible with Prometheus scraping.
 from __future__ import annotations
 
 import time
-import json
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Any
 
 
 @dataclass
@@ -47,7 +45,9 @@ class MetricsCollector:
         self._counters: dict[str, float] = defaultdict(float)
         self._histograms: dict[str, list[float]] = defaultdict(list)
         self._gauges: dict[str, float] = {}
-        self._labeled_counters: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        self._labeled_counters: dict[str, dict[str, float]] = defaultdict(
+            lambda: defaultdict(float)
+        )
         self._start_time = time.time()
 
     # Counters
@@ -87,8 +87,8 @@ class MetricsCollector:
         uptime = time.time() - self._start_time
 
         # Uptime
-        lines.append(f"# HELP agent_bmm_uptime_seconds Agent uptime")
-        lines.append(f"# TYPE agent_bmm_uptime_seconds gauge")
+        lines.append("# HELP agent_bmm_uptime_seconds Agent uptime")
+        lines.append("# TYPE agent_bmm_uptime_seconds gauge")
         lines.append(f"agent_bmm_uptime_seconds {uptime:.1f}")
 
         # Counters
@@ -105,7 +105,7 @@ class MetricsCollector:
         # Histograms (summary stats)
         for name, values in self._histograms.items():
             if values:
-                avg = sum(values) / len(values)
+                sum(values) / len(values)
                 p50 = sorted(values)[len(values) // 2]
                 p99 = sorted(values)[int(len(values) * 0.99)]
                 lines.append(f"# TYPE {name} summary")

@@ -8,20 +8,35 @@ Supports arithmetic, trig, statistics, and unit conversions.
 from __future__ import annotations
 
 import math
-import re
 
 from agent_bmm.tools.registry import Tool
 
 # Safe math functions
 _MATH_FUNCS = {
-    "sin": math.sin, "cos": math.cos, "tan": math.tan,
-    "asin": math.asin, "acos": math.acos, "atan": math.atan,
-    "sqrt": math.sqrt, "log": math.log, "log10": math.log10,
-    "log2": math.log2, "exp": math.exp, "pow": pow,
-    "abs": abs, "round": round, "ceil": math.ceil, "floor": math.floor,
-    "pi": math.pi, "e": math.e, "inf": math.inf,
-    "sum": sum, "min": min, "max": max,
-    "factorial": math.factorial, "gcd": math.gcd,
+    "sin": math.sin,
+    "cos": math.cos,
+    "tan": math.tan,
+    "asin": math.asin,
+    "acos": math.acos,
+    "atan": math.atan,
+    "sqrt": math.sqrt,
+    "log": math.log,
+    "log10": math.log10,
+    "log2": math.log2,
+    "exp": math.exp,
+    "pow": pow,
+    "abs": abs,
+    "round": round,
+    "ceil": math.ceil,
+    "floor": math.floor,
+    "pi": math.pi,
+    "e": math.e,
+    "inf": math.inf,
+    "sum": sum,
+    "min": min,
+    "max": max,
+    "factorial": math.factorial,
+    "gcd": math.gcd,
 }
 
 

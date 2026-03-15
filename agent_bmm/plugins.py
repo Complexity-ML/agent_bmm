@@ -42,9 +42,11 @@ def discover_plugins() -> dict[str, str]:
 
     if sys.version_info >= (3, 12):
         from importlib.metadata import entry_points
+
         eps = entry_points(group="agent_bmm.tools")
     else:
         from importlib.metadata import entry_points
+
         all_eps = entry_points()
         eps = all_eps.get("agent_bmm.tools", [])
 

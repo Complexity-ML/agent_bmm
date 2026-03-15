@@ -10,8 +10,8 @@ tool indices to their implementations for post-routing execution.
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
-from typing import Any, Callable, Awaitable
+from dataclasses import dataclass
+from typing import Any, Awaitable, Callable
 
 
 @dataclass
@@ -95,11 +95,7 @@ class ToolRegistry:
         """Execute a tool asynchronously."""
         return await self._tools[tool_idx].acall(query)
 
-    async def batch_execute(
-        self, tool_ids: list[int], queries: list[str]
-    ) -> list[Any]:
+    async def batch_execute(self, tool_ids: list[int], queries: list[str]) -> list[Any]:
         """Execute multiple tools in parallel (async)."""
-        tasks = [
-            self.aexecute(tid, q) for tid, q in zip(tool_ids, queries)
-        ]
+        tasks = [self.aexecute(tid, q) for tid, q in zip(tool_ids, queries)]
         return await asyncio.gather(*tasks)

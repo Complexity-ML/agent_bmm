@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import AsyncIterator, Callable, Any
+from typing import Any, AsyncIterator, Callable
 
 import aiohttp
 
@@ -85,15 +85,13 @@ class StreamingHandler:
 
     async def emit_tool_start(self, tool_name: str, query: str):
         """Notify listeners that a tool is starting."""
-        await self._emit("tool_start", json.dumps({
-            "tool": tool_name, "query": query
-        }))
+        await self._emit("tool_start", json.dumps({"tool": tool_name, "query": query}))
 
     async def emit_tool_result(self, tool_name: str, result: str):
         """Notify listeners that a tool finished."""
-        await self._emit("tool_result", json.dumps({
-            "tool": tool_name, "result": result[:500]
-        }))
+        await self._emit(
+            "tool_result", json.dumps({"tool": tool_name, "result": result[:500]})
+        )
 
     async def emit_thinking(self, thought: str):
         """Notify listeners of agent thinking."""

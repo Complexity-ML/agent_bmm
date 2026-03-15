@@ -42,6 +42,7 @@ class Retriever:
     def _load_embedder(self):
         if self._embedder is None:
             from sentence_transformers import SentenceTransformer
+
             self._embedder = SentenceTransformer(self.model_name)
 
     def add_documents(self, texts: list[str], sources: list[str] | None = None):
@@ -56,12 +57,14 @@ class Retriever:
         for text, source in zip(texts, sources):
             words = text.split()
             for i in range(0, len(words), 200):  # ~200 word chunks
-                chunk_text = " ".join(words[i:i + 200])
-                new_chunks.append(Chunk(
-                    text=chunk_text,
-                    source=source,
-                    chunk_id=len(self._chunks) + len(new_chunks),
-                ))
+                chunk_text = " ".join(words[i : i + 200])
+                new_chunks.append(
+                    Chunk(
+                        text=chunk_text,
+                        source=source,
+                        chunk_id=len(self._chunks) + len(new_chunks),
+                    )
+                )
 
         # Embed
         embeddings = self._embedder.encode(
@@ -73,6 +76,7 @@ class Retriever:
         # Index
         if self._index is None:
             import faiss
+
             dim = embeddings.shape[1]
             self._index = faiss.IndexFlatIP(dim)  # inner product (cosine on normalized)
 

@@ -15,7 +15,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
-import sys
 from pathlib import Path
 
 from rich.console import Console
@@ -37,6 +36,7 @@ def load_config(path: str | None = None) -> dict:
     if p.suffix in (".yaml", ".yml"):
         try:
             import yaml
+
             return yaml.safe_load(p.read_text()) or {}
         except ImportError:
             console.print("[yellow]PyYAML not installed, trying JSON...[/]")
@@ -47,8 +47,15 @@ def build_agent_from_config(config: dict):
     """Build an Agent from config dict."""
     from agent_bmm.agent import Agent
     from agent_bmm.tools.builtin import (
-        WebSearchTool, SQLTool, APITool, FileIOTool,
-        CodeExecTool, MathTool, GitHubTool, SlackTool, DockerTool,
+        APITool,
+        CodeExecTool,
+        DockerTool,
+        FileIOTool,
+        GitHubTool,
+        MathTool,
+        SlackTool,
+        SQLTool,
+        WebSearchTool,
     )
 
     BUILTIN_TOOLS = {
@@ -126,6 +133,7 @@ def cmd_serve(args):
     agent = build_agent_from_config(config)
 
     from agent_bmm.server import run_server
+
     console.print(f"[bold cyan]Starting Agent BMM server on port {args.port}[/]")
     asyncio.run(run_server(agent, host=args.host, port=args.port))
 
@@ -139,12 +147,14 @@ def cmd_batch(args):
     if input_path.suffix == ".json":
         queries = json.loads(input_path.read_text())
     else:
-        queries = [line.strip() for line in input_path.read_text().splitlines() if line.strip()]
+        queries = [
+            line.strip() for line in input_path.read_text().splitlines() if line.strip()
+        ]
 
     async def process_batch():
         results = []
         for i, query in enumerate(queries):
-            console.print(f"[dim][{i+1}/{len(queries)}][/] {query[:80]}")
+            console.print(f"[dim][{i + 1}/{len(queries)}][/] {query[:80]}")
             try:
                 answer = await agent.ask(query)
                 results.append({"query": query, "answer": answer, "status": "ok"})

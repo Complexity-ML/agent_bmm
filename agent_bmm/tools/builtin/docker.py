@@ -63,10 +63,13 @@ def create_docker_tool(
                         timeout=aiohttp.ClientTimeout(total=timeout),
                     ) as resp:
                         images = await resp.json()
-                        return "\n".join(
-                            f"  {img.get('RepoTags', ['<none>'])[0]} {img['Size']//1024//1024}MB"
-                            for img in images[:20]
-                        ) or "No images"
+                        return (
+                            "\n".join(
+                                f"  {img.get('RepoTags', ['<none>'])[0]} {img['Size'] // 1024 // 1024}MB"
+                                for img in images[:20]
+                            )
+                            or "No images"
+                        )
 
                 elif cmd == "logs" and len(parts) >= 2:
                     cid = parts[1]

@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 
 import aiohttp
-import orjson
 
 from agent_bmm.tools.registry import Tool
 
@@ -67,7 +66,8 @@ def create_github_tool(
                     return "Error: unknown command. Use repos/issues/pr/search/readme"
 
                 async with session.get(
-                    url, headers=headers,
+                    url,
+                    headers=headers,
                     timeout=aiohttp.ClientTimeout(total=timeout),
                 ) as resp:
                     if resp.status == 404:
@@ -83,10 +83,13 @@ def create_github_tool(
 
                     if cmd == "search":
                         items = data.get("items", [])
-                        return "\n".join(
-                            f"  {r['full_name']} ({r['stargazers_count']} stars): {r.get('description', '')}"
-                            for r in items
-                        ) or "No results"
+                        return (
+                            "\n".join(
+                                f"  {r['full_name']} ({r['stargazers_count']} stars): {r.get('description', '')}"
+                                for r in items
+                            )
+                            or "No results"
+                        )
 
                     if isinstance(data, list):
                         lines = []

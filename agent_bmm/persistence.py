@@ -12,8 +12,6 @@ from __future__ import annotations
 import json
 import sqlite3
 import time
-from pathlib import Path
-from typing import Any
 
 
 class ConversationStore:
@@ -82,7 +80,9 @@ class ConversationStore:
         """)
         conn.commit()
 
-    def create_conversation(self, title: str = "Untitled", metadata: dict | None = None) -> int:
+    def create_conversation(
+        self, title: str = "Untitled", metadata: dict | None = None
+    ) -> int:
         conn = self._get_conn()
         now = time.time()
         cursor = conn.execute(
@@ -108,7 +108,16 @@ class ConversationStore:
             """INSERT INTO messages
             (conversation_id, role, content, timestamp, tool_name, tool_result, expert_id, metadata)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
-            (conversation_id, role, content, now, tool_name, tool_result, expert_id, json.dumps(metadata or {})),
+            (
+                conversation_id,
+                role,
+                content,
+                now,
+                tool_name,
+                tool_result,
+                expert_id,
+                json.dumps(metadata or {}),
+            ),
         )
         conn.execute(
             "UPDATE conversations SET updated_at = ? WHERE id = ?",
@@ -129,7 +138,13 @@ class ConversationStore:
             """INSERT INTO agent_state
             (conversation_id, step, routing_decisions, expert_distribution, timestamp)
             VALUES (?, ?, ?, ?, ?)""",
-            (conversation_id, step, json.dumps(routing_decisions), json.dumps(expert_distribution), time.time()),
+            (
+                conversation_id,
+                step,
+                json.dumps(routing_decisions),
+                json.dumps(expert_distribution),
+                time.time(),
+            ),
         )
         conn.commit()
 
@@ -158,8 +173,12 @@ class ConversationStore:
 
     def delete_conversation(self, conversation_id: int):
         conn = self._get_conn()
-        conn.execute("DELETE FROM messages WHERE conversation_id = ?", (conversation_id,))
-        conn.execute("DELETE FROM agent_state WHERE conversation_id = ?", (conversation_id,))
+        conn.execute(
+            "DELETE FROM messages WHERE conversation_id = ?", (conversation_id,)
+        )
+        conn.execute(
+            "DELETE FROM agent_state WHERE conversation_id = ?", (conversation_id,)
+        )
         conn.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
         conn.commit()
 

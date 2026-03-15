@@ -47,14 +47,11 @@ class ContextMemory:
     def add_turn(self, role: str, content: str):
         self.turns.append(Turn(role=role, content=content))
         if len(self.turns) > self.max_turns:
-            self.turns = self.turns[-self.max_turns:]
+            self.turns = self.turns[-self.max_turns :]
 
     def add_tool_result(self, result: ToolResult):
         self.current_chain.append(result)
-        self.add_turn(
-            "tool",
-            f"[{result.tool_name}] {result.result}"
-        )
+        self.add_turn("tool", f"[{result.tool_name}] {result.result}")
 
     def clear_chain(self):
         self.current_chain = []
